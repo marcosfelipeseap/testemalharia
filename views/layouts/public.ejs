@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8">
+    <title><%- typeof title !== 'undefined' ? title : 'Painel de Produção' %></title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="icon" href="/img/logo.png" type="image/png">
+    
+    <style>
+      :root {
+        /* TEMA CLARO */
+        --bg-body: #F0F4F8;
+        --surface: #FFFFFF;
+        --sidebar-bg: #FFFFFF;
+        --primary: #1565C0;
+        --primary-light: #E3F2FD;
+        --text-main: #333333;
+        --text-muted: #666666;
+        --border: #E0E0E0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.05);
+        --chart-grid: #f0f0f0;
+        --card-border: 1px solid #E0E0E0;
+        
+        --success-bg: #E8F5E9; --success-text: #2E7D32;
+        --danger-bg: #FFEBEE; --danger-text: #C62828;
+        --neutral-bg: #F5F5F5; --neutral-text: #757575;
+        
+        --alert-bg: #FFEB3B; 
+        --alert-text: #000000;
+        --alert-border: #F9A825;
+
+        --insumo-bg: #673AB7;
+        --insumo-text: #FFFFFF;
+        
+        --warning-bg: #FFF9C4; --warning-text: #FBC02D; --warning-text-dark: #F57F17;
+      }
+
+      /* TEMA ESCURO */
+      body.dark-mode {
+        --bg-body: #121212;
+        --surface: #1E1E1E;
+        --sidebar-bg: #1E1E1E;
+        --primary: #90CAF9;
+        --primary-light: #263238;
+        --text-main: #E0E0E0;
+        --text-muted: #B0B0B0;
+        --border: #333333;
+        --shadow: 0 4px 12px rgba(0,0,0,0.3);
+        --chart-grid: #333333;
+        --card-border: 1px solid #333;
+        
+        --success-bg: rgba(46, 125, 50, 0.2); --success-text: #81C784;
+        --danger-bg: rgba(198, 40, 40, 0.2); --danger-text: #E57373;
+        --neutral-bg: rgba(117, 117, 117, 0.2); --neutral-text: #BDBDBD;
+        
+        --alert-bg: #FDD835; 
+        --alert-text: #000000;
+        --alert-border: #F9A825;
+        
+        --insumo-bg: #512DA8;
+        
+        --warning-bg: rgba(253, 216, 53, 0.2); --warning-text: #FFF59D; --warning-text-dark: #FDD835;
+      }
+
+      * { box-sizing: border-box; }
+      body { font-family: 'Poppins', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
+
+      /* SIDEBAR */
+      .sidebar { width: 260px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid var(--border); z-index: 10; transition: 0.3s; }
+      .logo { padding: 25px 20px; font-size: 16px; font-weight: 700; color: var(--primary); display: flex; align-items: center; border-bottom: 1px solid var(--border); gap: 10px; }
+      .menu { flex: 1; padding: 20px; overflow-y: auto; }
+      .nav-btn { width: 100%; background: none; border: none; padding: 12px 16px; text-align: left; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; margin-bottom: 5px; transition: 0.2s; text-decoration: none; }
+      .nav-btn:hover { background: var(--primary-light); color: var(--primary); }
+      .nav-btn.active { background: var(--primary); color: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+      
+      .mode-toggle { padding: 20px; border-top: 1px solid var(--border); }
+      .toggle-btn { display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-muted); font-size: 14px; }
+
+      /* MAIN E PAGE SWITCHER */
+      .main { flex: 1; padding: 30px; overflow-y: auto; }
+      
+      .page { display: none; animation: fadeIn 0.4s ease; }
+      .page.active { display: block; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+
+      h2 { color: var(--text-main); margin-bottom: 20px; font-weight: 600; }
+
+      /* ESTILOS COMUNS */
+      input, select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-main); outline: none; }
+      .btn-notif { padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 14px; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
+      .btn-notif-sec { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border); }
+      .btn-notif-sec:hover { background: var(--border); }
+      .btn-notif-pri { background: #4CAF50; color: white; }
+      .btn-notif-pri:hover { background: #388E3C; }
+
+      /* --- CSS DOS MODAIS --- */
+      @keyframes slideDownFadIn {
+          from { opacity: 0; transform: translateY(-30px); }
+          to { opacity: 1; transform: translateY(0); }
+      }
+      .notif-overlay {
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+          z-index: 10500; display: none; align-items: center; justify-content: center;
+      }
+      .notif-box {
+          background: var(--surface); width: 95%; max-width: 600px;
+          max-height: 85vh; border-radius: 16px; display: flex; flex-direction: column;
+          box-shadow: 0 15px 50px rgba(0,0,0,0.5); overflow: hidden;
+          border: 1px solid var(--border);
+          animation: slideDownFadIn 0.3s ease-out forwards;
+          color: var(--text-main);
+      }
+      .notif-header {
+          padding: 20px; background: var(--primary); color: #fff;
+          display: flex; justify-content: space-between; align-items: center;
+      }
+      .notif-header h5 { margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px;}
+      .notif-close { cursor: pointer; background: none; border: none; color: white; font-size: 24px; transition: 0.2s; }
+      .notif-close:hover { transform: scale(1.1); }
+      .notif-body { padding: 20px; overflow-y: auto; flex: 1; }
+      .notif-footer {
+          padding: 15px 20px; border-top: 1px solid var(--border);
+          display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-body);
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <div class="sidebar">
+      <div class="logo">
+          <img src="/img/logo.png" alt="Logo" style="height: 30px;">
+          <span>PAINEL PÚBLICO</span>
+      </div>
+
+      <div class="menu">
+        <button id="btn-page1" class="nav-btn active" onclick="showPage('page1')"><span class="material-icons">today</span> Diário</button>
+        <button id="btn-pageOficina" class="nav-btn" onclick="showPage('pageOficina')"><span class="material-icons">store</span> Relatório da Oficina</button>
+        <button id="btn-page2" class="nav-btn" onclick="showPage('page2')"><span class="material-icons">show_chart</span> Desempenho</button>
+        <button id="btn-page3" class="nav-btn" onclick="showPage('page3')"><span class="material-icons">list_alt</span> Detalhes</button>
+        <button id="btn-page4" class="nav-btn" onclick="showPage('page4')"><span class="material-icons">trending_up</span> Demanda</button>
+        <button id="btn-page5" class="nav-btn" onclick="showPage('page5')"><span class="material-icons">folder_shared</span> Processos</button>
+      </div>
+      
+      <div class="mode-toggle">
+        <a href="/auth/login" class="nav-btn" style="color: var(--primary); font-weight: 600; margin-bottom: 15px; border: 1px solid var(--primary-light); text-decoration: none;">
+            <span class="material-icons">login</span> Fazer Login
+        </a>
+        <div class="toggle-btn" onclick="toggleDarkMode()">
+          <span class="material-icons" id="modeIcon">dark_mode</span><span id="modeText">Modo Escuro</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÁREA PRINCIPAL ONDE AS VIEWS SÃO INJETADAS -->
+    <div class="main">
+      <%- body %>
+    </div>
+
+    <!-- MODAL GENÉRICO DE ALERTAS (DIAS SEM RELATÓRIO / SEM INSUMO) -->
+    <div id="genericModal" class="notif-overlay">
+        <div class="notif-box">
+            <div class="notif-header">
+                <h5 id="modalTitle">Detalhes</h5>
+                <button type="button" class="notif-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="notif-body">
+                <div id="modalList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+            <div class="notif-footer">
+                <button class="btn-notif btn-notif-sec" onclick="closeModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY DO WHATSAPP -->
+    <div class="notif-overlay" id="whatsOverlay">
+        <div class="notif-box">
+            <div class="notif-header" style="background: #128C7E;">
+                <h5><i class="bi bi-whatsapp" style="margin-right: 8px;"></i> Pré-visualização do Relatório</h5>
+                <button type="button" class="notif-close" onclick="closeWhatsModal()">&times;</button>
+            </div>
+            <div class="notif-body">
+                <textarea id="whatsTextarea" style="width: 100%; height: 300px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: monospace; background: var(--bg-body); color: var(--text-main); resize: none;" readonly></textarea>
+            </div>
+            <div class="notif-footer">
+                <button class="btn-notif btn-notif-sec" onclick="closeWhatsModal()">Fechar</button>
+                <button class="btn-notif btn-notif-pri" id="btnCopyWhats" onclick="copyWhatsText()"><i class="bi bi-whatsapp" style="font-size: 16px; margin-right: 6px;"></i> Copiar Texto</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      function getThemeColor(varName) {
+          return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+      }
+
+      // Lógica de Alternância de Abas (Páginas)
+      function showPage(pageId) {
+          document.querySelectorAll('.page').forEach(page => {
+              page.classList.remove('active');
+          });
+          document.getElementById(pageId).classList.add('active');
+
+          document.querySelectorAll('.nav-btn').forEach(btn => {
+              btn.classList.remove('active');
+          });
+          const btnAtivo = document.getElementById('btn-' + pageId);
+          if (btnAtivo) btnAtivo.classList.add('active');
+
+          // Gatilhos específicos ao abrir cada aba
+          if (pageId === 'pageOficina' && typeof renderPageOficina === 'function') {
+              renderPageOficina();
+          }
+          if (pageId === 'page2' && typeof setupChips === 'function') {
+              setupChips();
+          }
+          if (pageId === 'page3' && typeof renderPage3 === 'function') {
+              renderPage3();
+          }
+          if (pageId === 'page4' && typeof setupDemanda === 'function') {
+              setupDemanda();
+          }
+          if (pageId === 'page5' && typeof initProcesses === 'function') {
+              initProcesses(processosData);
+          }
+      }
+
+      // Funções do Modal Genérico
+      function openModal(title, items) {
+          document.getElementById('modalTitle').innerText = title;
+          let list = document.getElementById('modalList');
+          list.innerHTML = items.map(i => `<div class="modal-item" style="padding: 10px 14px; background: var(--bg-body); border-radius: 6px; border: 1px solid var(--border); font-size: 13px;">${i}</div>`).join('');
+          document.getElementById('genericModal').style.display = 'flex';
+      }
+
+      function closeModal() {
+          document.getElementById('genericModal').style.display = 'none';
+      }
+
+      // Lógica do Modo Escuro
+      function toggleDarkMode() {
+          document.body.classList.toggle('dark-mode');
+          const isDark = document.body.classList.contains('dark-mode');
+          document.getElementById('modeIcon').innerText = isDark ? 'light_mode' : 'dark_mode';
+          document.getElementById('modeText').innerText = isDark ? 'Modo Claro' : 'Modo Escuro';
+          localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+          
+          if (document.getElementById('pageOficina').classList.contains('active') && typeof renderPageOficina === 'function') {
+             renderPageOficina();
+          }
+          if (document.getElementById('page2').classList.contains('active') && typeof renderPage2 === 'function') {
+             renderPage2();
+          }
+          if (document.getElementById('page3').classList.contains('active') && typeof renderPage3 === 'function') {
+             renderPage3();
+          }
+          if (document.getElementById('page4').classList.contains('active') && typeof setupDemanda === 'function') {
+             setupDemanda();
+          }
+          if (document.getElementById('page5').classList.contains('active') && typeof initProcesses === 'function') {
+             initProcesses(processosData);
+          }
+      }
+
+      if (localStorage.getItem('darkMode') === 'true') {
+          document.body.classList.add('dark-mode');
+          document.getElementById('modeIcon').innerText = 'light_mode';
+          document.getElementById('modeText').innerText = 'Modo Claro';
+      }
+
+      // Lógica do Modal de Pré-Visualização WhatsApp
+      function openWhatsModal(text) {
+          document.getElementById('whatsTextarea').value = text;
+          document.getElementById('whatsOverlay').style.display = 'flex';
+      }
+
+      function closeWhatsModal() {
+          document.getElementById('whatsOverlay').style.display = 'none';
+      }
+
+      function copyWhatsText() {
+          const text = document.getElementById('whatsTextarea').value;
+          navigator.clipboard.writeText(text).then(() => {
+              const btn = document.getElementById('btnCopyWhats');
+              const origHtml = btn.innerHTML;
+              
+              btn.innerHTML = '<i class="bi bi-check-lg" style="font-size: 16px; margin-right: 6px;"></i> Copiado!';
+              btn.classList.remove('btn-notif-pri');
+              btn.style.background = 'var(--surface)';
+              btn.style.color = '#4CAF50';
+              btn.style.border = '1px solid #4CAF50';
+              
+              setTimeout(() => {
+                  btn.innerHTML = origHtml;
+                  btn.classList.add('btn-notif-pri');
+                  btn.style = '';
+              }, 2500);
+          });
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,424 @@
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom flex-wrap">
+    <div>
+        <h1 class="h2 d-flex align-items-center gap-2 mb-1">
+            Processo: <%= processo.numero_processo %>
+            <% if (processo.link_sei) { %>
+                <a href="<%= processo.link_sei %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Abrir direto no SEI">
+                    <i class="bi bi-box-arrow-up-right"></i> Acessar SEI
+                </a>
+            <% } %>
+        </h1>
+        <span class="text-muted"><%= processo.orgao %></span>
+    </div>
+    <div class="mt-2 mt-md-0">
+        <a href="/processos/<%= processo.id %>/edit" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        <a href="/processos" class="btn btn-secondary">Voltar</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-body">
+                <h5 class="card-title text-secondary mb-3"><i class="bi bi-info-circle"></i> Detalhes</h5>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Data Entrada:</dt>
+                    <dd class="col-sm-8"><%= processo.data_entrada ? new Date(processo.data_entrada).toLocaleDateString('pt-BR') : '-' %></dd>
+
+                    <dt class="col-sm-4">Tipo Demanda:</dt>
+                    <dd class="col-sm-8"><%= processo.tipo_demanda %></dd>
+
+                    <dt class="col-sm-4">Status:</dt>
+                    <dd class="col-sm-8"><span class="badge bg-secondary"><%= processo.status %></span></dd>
+
+                    <dt class="col-sm-4">Situação:</dt>
+                    <dd class="col-sm-8"><%= processo.situacao || '-' %></dd>
+                    
+                    <dt class="col-sm-4 mt-2">Link SEI:</dt>
+                    <dd class="col-sm-8 mt-2">
+                        <% if (processo.link_sei) { %>
+                            <a href="<%= processo.link_sei %>" target="_blank" class="text-decoration-none fw-bold">
+                                <i class="bi bi-link-45deg"></i> Abrir Processo no SEI
+                            </a>
+                        <% } else { %>
+                            <span class="text-muted">-</span>
+                        <% } %>
+                    </dd>
+
+                    <dt class="col-sm-4 mt-2">Total Fabricado:</dt>
+                    <dd class="col-sm-8 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-success shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalFabricado" title="Ver detalhes de produção">
+                            <i class="bi bi-tools me-1"></i> <%= processo.total_fabricado || 0 %> un <i class="bi bi-box-arrow-in-up-right ms-1"></i>
+                        </button>
+                    </dd>
+
+                    <dt class="col-sm-4 mt-2">Observações:</dt>
+                    <dd class="col-sm-8 mt-2"><%= processo.observacao || '-' %></dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header bg-white border-bottom-0 pt-3">
+                <h5 class="card-title text-secondary mb-0"><i class="bi bi-file-earmark-pdf"></i> Termos de Entrega</h5>
+            </div>
+            <div class="card-body pt-0">
+                <ul class="list-group list-group-flush mb-3">
+                    <% if (!processo.termos || processo.termos.length === 0) { %>
+                        <li class="list-group-item text-muted small fst-italic ps-0">Nenhum termo anexado.</li>
+                    <% } else { %>
+                        <% processo.termos.forEach(termo => { %>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div class="text-truncate me-2">
+                                    <span class="fw-bold d-block text-dark"><i class="bi bi-file-pdf text-danger"></i> <%= termo.numero_termo %></span>
+                                    <small class="text-muted"><%= termo.nome_arquivo %></small>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <a href="<%= termo.url_publica %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <form action="/processos/<%= processo.id %>/termos/<%= termo.id %>/delete" method="POST" onsubmit="return confirm('Remover este termo?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                        <% }) %>
+                    <% } %>
+                </ul>
+                <hr>
+                <form action="/processos/<%= processo.id %>/termos" method="POST" enctype="multipart/form-data">
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold mb-1">Anexar Novo Termo</label>
+                        <input type="text" class="form-control form-control-sm mb-2" name="numero_termo" placeholder="Numeração (Ex: Termo 01)" required>
+                        <input type="file" class="form-control form-control-sm" name="arquivo_pdf" accept="application/pdf" required>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="bi bi-cloud-upload"></i> Anexar PDF
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom-0 pt-3 d-flex justify-content-between align-items-center flex-wrap">
+                <h5 class="card-title text-secondary mb-2 mb-md-0"><i class="bi bi-images"></i> Galeria Geral do Processo</h5>
+                <form action="/processos/<%= processo.id %>/imagens" method="POST" enctype="multipart/form-data" class="d-flex gap-2">
+                    <input type="file" class="form-control form-control-sm" name="arquivo_imagem" accept="image/*,application/pdf" required>
+                    <button type="submit" class="btn btn-primary btn-sm text-nowrap"><i class="bi bi-upload"></i> Upload</button>
+                </form>
+            </div>
+            <div class="card-body">
+                <% if (!processo.imagens || processo.imagens.length === 0) { %>
+                    <p class="text-muted small fst-italic mb-0 text-center py-3">Nenhuma imagem ou arte geral adicionada para este processo.</p>
+                <% } else { %>
+                    <div class="d-flex flex-wrap gap-3">
+                        <% processo.imagens.forEach(img => { %>
+                            <div class="position-relative">
+                                <% if (img.tipo_arquivo === 'application/pdf' || img.nome_arquivo.toLowerCase().endsWith('.pdf')) { %>
+                                    <div class="card border rounded bg-light d-flex flex-column align-items-center justify-content-center shadow-sm hover-shadow text-center p-2" 
+                                         style="width: 130px; height: 130px; cursor: pointer;"
+                                         onclick="window.open('<%= img.url_publica %>', '_blank')" title="Clique para abrir o PDF da Arte">
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger mb-1" style="font-size: 2.3rem;"></i>
+                                        <small class="text-dark text-truncate w-100 fw-bold px-1" title="<%= img.nome_arquivo %>"><%= img.nome_arquivo %></small>
+                                    </div>
+                                <% } else { %>
+                                    <img src="<%= img.url_publica %>" alt="Modelo" class="img-thumbnail rounded shadow-sm hover-shadow" 
+                                         style="width: 130px; height: 130px; object-fit: cover; cursor: pointer; transition: transform 0.2s;" 
+                                         data-bs-toggle="modal" data-bs-target="#modalImagem-<%= img.id %>">
+                                <% } %>
+                                
+                                <form action="/processos/<%= processo.id %>/imagens/<%= img.id %>/delete" method="POST" class="position-absolute top-0 end-0 m-1" onsubmit="return confirm('Excluir esta imagem permanentemente?');">
+                                    <button type="submit" class="btn btn-danger btn-sm rounded-circle shadow-sm" style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; padding:0; z-index: 10;">
+                                        <i class="bi bi-x fs-5"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <% if (img.tipo_arquivo !== 'application/pdf' && !img.nome_arquivo.toLowerCase().endsWith('.pdf')) { %>
+                                <div class="modal fade" id="modalImagem-<%= img.id %>" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                                        <div class="modal-content bg-transparent border-0">
+                                            <div class="modal-header border-0 pb-0 justify-content-end">
+                                                <button type="button" class="btn-close btn-close-white shadow" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body text-center p-0">
+                                                <img src="<%= img.url_publica %>" class="img-fluid rounded shadow-lg" alt="Modelo">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% } %>
+                        <% }) %>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h4 class="mb-3">Produtos do Processo</h4>
+<div class="table-responsive mb-5">
+    <table class="table table-bordered table-striped shadow-sm align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th class="text-center" style="width: 60px;">Img</th> 
+                <th>Item</th>
+                <th>Descrição</th>
+                <th class="text-center" style="width: 80px;">Tam.</th> 
+                <th class="text-center">Solicitada</th>
+                <th class="text-center">Autorizada</th>
+                <th class="text-center">Entregue</th>
+                <th class="text-center">Faltante</th>
+                <th class="text-center">Prazo</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (processo.itens.length === 0) { %>
+                <tr><td colspan="9" class="text-center">Nenhum item registrado.</td></tr>
+            <% } else { %>
+                <% processo.itens.forEach(item => { %>
+                    <tr>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm <%= item.imagens && item.imagens.length > 0 ? 'btn-success' : 'btn-outline-secondary' %>" 
+                                    data-bs-toggle="modal" data-bs-target="#modalItemImg-<%= item.id %>" title="Imagens deste produto">
+                                <i class="bi bi-image"></i> <%= item.imagens && item.imagens.length > 0 ? item.imagens.length : '+' %>
+                            </button>
+                        </td>
+                        <td class="fw-bold"><%= item.item ? item.item.nome : 'Item removido' %></td>
+                        <td class="small text-muted"><%= item.descricao || '-' %></td>
+                        <td class="text-center"><%= item.tamanho || '-' %></td> 
+                        <td class="text-center"><%= item.qtd_solicitada %></td>
+                        <td class="text-center"><%= item.qtd_autorizada %></td>
+                        
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-light border border-secondary shadow-sm text-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalHistorico-<%= item.id %>" title="Ver Origem das Entradas">
+                                <%= item.qtd_entregue %> <i class="bi bi-box-arrow-in-right ms-1"></i>
+                            </button>
+                            
+                            <% if (item.qtd_entregue > item.qtd_solicitada) { %>
+                                <div class="text-danger small fw-bold mt-1" title="Foram entregues <%= item.qtd_entregue - item.qtd_solicitada %> unidades a mais que o solicitado">
+                                    <i class="bi bi-exclamation-circle"></i> +<%= item.qtd_entregue - item.qtd_solicitada %> extra!
+                                </div>
+                            <% } %>
+                        </td>
+
+                        <td class="text-center fw-bold text-danger"><%= item.qtd_faltante %></td>
+                        <td class="text-center"><%= item.data_prazo ? new Date(item.data_prazo).toLocaleDateString('pt-BR') : '-' %></td>
+                    </tr>
+                <% }) %>
+            <% } %>
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4 text-end">
+    <form action="/processos/<%= processo.id %>/delete" method="POST" onsubmit="return confirm('ATENÇÃO: Isso apagará o processo, os termos anexados, as imagens e todos os registros de itens associados a ele. Continuar?');">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Excluir Processo Permanentemente</button>
+    </form>
+</div>
+
+<div class="modal fade" id="modalFabricado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-tools me-2"></i> Relatório de Fabricação</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-3 bg-light border-bottom text-center">
+                    <span class="text-muted small d-block mb-1 text-uppercase fw-bold">Total Geral Produzido</span>
+                    <h2 class="text-success fw-bold mb-0"><%= processo.total_fabricado || 0 %> peças</h2>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <% if (!processo.detalhesMalharias || Object.keys(processo.detalhesMalharias).length === 0) { %>
+                        <li class="list-group-item text-center py-5 text-muted bg-white">
+                            <i class="bi bi-clock-history display-4 opacity-25 d-block mb-3"></i>
+                            Nenhuma produção diária registrada para este processo ainda.
+                        </li>
+                    <% } else { %>
+                        <% Object.entries(processo.detalhesMalharias).forEach(([malharia, dadosMalharia]) => { %>
+                            <li class="list-group-item py-3 bg-white">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold text-secondary fs-6"><i class="bi bi-shop me-2 text-success"></i> <%= malharia %></span>
+                                    <span class="badge bg-success rounded-pill fs-6 shadow-sm"><%= dadosMalharia.total %> un</span>
+                                </div>
+                                
+                                <div class="ps-3 border-start border-2 border-success border-opacity-25 mt-2">
+                                    <% Object.entries(dadosMalharia.produtos).forEach(([produto, qtdProduto]) => { %>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="text-dark"><i class="bi bi-arrow-return-right text-muted me-1"></i> <%= produto %></small>
+                                            <small class="fw-bold text-secondary"><%= qtdProduto %> un</small>
+                                        </div>
+                                    <% }) %>
+                                </div>
+                            </li>
+                        <% }) %>
+                    <% } %>
+                </ul>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar Relatório</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% processo.itens.forEach(item => { %>
+    
+    <div class="modal fade" id="modalHistorico-<%= item.id %>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title text-dark fw-bold">
+                        <i class="bi bi-search text-primary me-2"></i> Origem das Entregas
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 text-primary fw-bold"><%= item.item ? item.item.nome : 'Item Desconhecido' %> <%= item.tamanho ? `(${item.tamanho})` : '' %></h6>
+                            <small class="text-muted">Total contabilizado no processo</small>
+                        </div>
+                        <span class="badge bg-primary fs-5 shadow-sm"><%= item.qtd_entregue %> un</span>
+                    </div>
+
+                    <ul class="list-group list-group-flush">
+                        <% if (item.qtd_manual > 0) { %>
+                            <li class="list-group-item bg-warning bg-opacity-10 py-3 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-dark fw-bold">
+                                        <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-5"></i>
+                                        Inserção Direta (Edição Manual)
+                                    </span>
+                                    <span class="badge bg-warning text-dark fs-6 rounded-pill shadow-sm"><%= item.qtd_manual %> un</span>
+                                </div>
+                                <div class="small text-muted ms-4 ps-2">
+                                    Esta quantidade foi colocada editando o processo <b>sem realizar a baixa/transferência</b> pelo fluxo de Estoque.
+                                </div>
+                            </li>
+                        <% } %>
+
+                        <% if (item.historico_entregas && item.historico_entregas.length > 0) { %>
+                            <% item.historico_entregas.forEach(hist => { %>
+                                <li class="list-group-item py-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-secondary mb-1">
+                                                <i class="bi bi-truck text-success me-2"></i> 
+                                                Recebido de: <span class="text-dark"><%= hist.origem %></span>
+                                            </div>
+                                            <small class="text-muted ms-4 ps-1">
+                                                <i class="bi bi-calendar-check"></i> <%= new Date(hist.data).toLocaleDateString('pt-BR') %> às <%= new Date(hist.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) %>
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-success fs-6 rounded-pill shadow-sm"><%= hist.quantidade %> un</span>
+                                    </div>
+                                </li>
+                            <% }) %>
+                        <% } %>
+
+                        <% if (item.qtd_entregue === 0) { %>
+                            <li class="list-group-item text-center text-muted py-5 bg-light">
+                                <i class="bi bi-inbox display-4 opacity-25 d-block mb-3"></i>
+                                Nenhuma entrada ou entrega foi registrada ainda.
+                            </li>
+                        <% } else if (item.qtd_manual === 0 && (!item.historico_entregas || item.historico_entregas.length === 0)) { %>
+                            <li class="list-group-item text-center text-muted py-4">
+                                Registro legado. A origem não pôde ser detalhada.
+                            </li>
+                        <% } %>
+                    </ul>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar Relatório</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalItemImg-<%= item.id %>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light border-bottom-0">
+                    <h5 class="modal-title fw-bold text-secondary">
+                        <i class="bi bi-images text-success me-2"></i> Modelos: <%= item.item ? item.item.nome : 'Produto' %> <%= item.tamanho ? `(${item.tamanho})` : '' %>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <form action="/processos/<%= processo.id %>/itens/<%= item.id %>/imagens" method="POST" enctype="multipart/form-data" class="d-flex gap-2 mb-4 bg-white p-3 rounded shadow-sm border">
+                        <input type="file" class="form-control form-control-sm" name="arquivo_imagem" accept="image/*,application/pdf" required>
+                        <button type="submit" class="btn btn-success btn-sm text-nowrap"><i class="bi bi-upload"></i> Salvar no Produto</button>
+                    </form>
+                    
+                    <% if (!item.imagens || item.imagens.length === 0) { %>
+                        <div class="text-center py-4 bg-light rounded">
+                            <i class="bi bi-camera fs-1 text-muted opacity-50 mb-2 d-block"></i>
+                            <p class="text-muted small fst-italic mb-0">Nenhuma imagem ou PDF de arte exclusivo para este produto.</p>
+                        </div>
+                    <% } else { %>
+                        <div class="d-flex flex-wrap gap-3">
+                            <% item.imagens.forEach(img => { %>
+                                <div class="position-relative">
+                                    <% if (img.tipo_arquivo === 'application/pdf' || img.nome_arquivo.toLowerCase().endsWith('.pdf')) { %>
+                                        <div class="card border rounded bg-light d-flex flex-column align-items-center justify-content-center shadow-sm hover-shadow text-center p-2" 
+                                             style="width: 130px; height: 130px; cursor: pointer;"
+                                             onclick="window.open('<%= img.url_publica %>', '_blank')" title="Clique para abrir o PDF da Arte">
+                                            <i class="bi bi-file-earmark-pdf-fill text-danger mb-1" style="font-size: 2.3rem;"></i>
+                                            <small class="text-dark text-truncate w-100 fw-bold px-1" title="<%= img.nome_arquivo %>"><%= img.nome_arquivo %></small>
+                                        </div>
+                                    <% } else { %>
+                                        <img src="<%= img.url_publica %>" alt="Modelo Específico" class="img-thumbnail rounded shadow-sm hover-shadow" 
+                                             style="width: 130px; height: 130px; object-fit: cover; cursor: pointer; transition: transform 0.2s;" 
+                                             data-bs-toggle="modal" data-bs-target="#modalAmpliada-<%= img.id %>">
+                                    <% } %>
+                                    
+                                    <form action="/processos/<%= processo.id %>/imagens/<%= img.id %>/delete" method="POST" class="position-absolute top-0 end-0 m-1" onsubmit="return confirm('Excluir esta imagem do produto?');">
+                                        <button type="submit" class="btn btn-danger btn-sm rounded-circle shadow-sm" style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; padding:0; z-index: 10;">
+                                            <i class="bi bi-x fs-5"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            <% }) %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <% if (item.imagens && item.imagens.length > 0) { %>
+        <% item.imagens.forEach(img => { %>
+            <% if (img.tipo_arquivo !== 'application/pdf' && !img.nome_arquivo.toLowerCase().endsWith('.pdf')) { %>
+                <div class="modal fade" id="modalAmpliada-<%= img.id %>" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content bg-transparent border-0">
+                            <div class="modal-header border-0 pb-0 justify-content-end">
+                                <button type="button" class="btn-close btn-close-white shadow" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center p-0">
+                                <img src="<%= img.url_publica %>" class="img-fluid rounded shadow-lg" alt="Modelo Específico">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+        <% }) %>
+    <% } %>
+
+<% }) %>
+
+<style>
+    .hover-shadow:hover { transform: scale(1.05); }
+</style>

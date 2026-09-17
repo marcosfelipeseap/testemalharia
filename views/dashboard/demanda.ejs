@@ -1,0 +1,345 @@
+<!-- =========================================================
+     PAGE 5 — PRODUÇÃO POR DEMANDA (DEMANDA)
+     ========================================================= -->
+<div id="page4" class="page">
+  <style>
+    .selection-panel { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .selection-panel { grid-template-columns: 1fr; } }
+    
+    .panel-list { background: var(--surface); border: var(--card-border); border-radius: 12px; padding: 15px; box-shadow: var(--shadow); max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .check-item { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s; color: var(--text-main); }
+    .check-item:hover { background: var(--primary-light); color: var(--primary); }
+    
+    .search-input { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-main); font-size: 13px; outline: none; margin-bottom: 8px; }
+    .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+
+    .summary-bar { background: var(--surface); border: var(--card-border); border-radius: 12px; padding: 15px 20px; box-shadow: var(--shadow); margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .summary-item { background: var(--primary-light); color: var(--primary); padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(21, 101, 192, 0.2); }
+
+    .custom-dropdown { position: relative; width: 100%; user-select: none; }
+    .custom-dropdown-btn { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-main); font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+    .custom-dropdown-btn:hover { border-color: var(--primary); }
+    
+    .custom-dropdown-content { display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 100; max-height: 280px; flex-direction: column; }
+    .custom-dropdown-search { padding: 10px; border-bottom: 1px solid var(--border); background: var(--surface); border-radius: 8px 8px 0 0; }
+    .custom-dropdown-search input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: var(--bg-body); color: var(--text-main); }
+    .custom-options-wrapper { overflow-y: auto; flex: 1; padding: 5px 0; }
+    .custom-option { padding: 10px 15px; font-size: 13px; cursor: pointer; color: var(--text-main); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .custom-option:last-child { border-bottom: none; }
+    .custom-option:hover { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  </style>
+
+  <h2>Produção por Demanda (Processo / Órgão)</h2>
+
+  <div class="selection-panel">
+    <div>
+      <div class="filter-group" style="margin-bottom:20px; position:relative;">
+        <label style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:700; display:block; margin-bottom:5px;">Processo / Órgão</label>
+        
+        <div class="custom-dropdown" id="demandaDropdown">
+            <div class="custom-dropdown-btn" onclick="toggleDemandaDropdown()">
+              <span id="demandaSelectedText" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; max-width:210px; font-weight:600;">Carregando...</span>
+              <span class="material-icons" style="font-size:18px">arrow_drop_down</span>
+            </div>
+            <div class="custom-dropdown-content" id="demandaDropdownContent">
+              <div class="custom-dropdown-search">
+                  <input type="text" id="demandaSearchInput" placeholder="Pesquisar órgão ou processo..." onkeyup="filterDemandaOptions(event)" onclick="event.stopPropagation()">
+              </div>
+              <div class="custom-options-wrapper" id="demandaOptionsContainer"></div>
+            </div>
+        </div>
+        <select id="p4Demanda" style="display:none;" onchange="updateP4Pecas(); renderPage4();"></select>
+      </div>
+      
+      <div class="filter-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <label style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Produtos do Processo</label>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="toggleAllP4Pecas(true)" style="background: none; border: none; color: var(--primary); font-size: 11px; font-weight: 600; cursor: pointer; padding: 0;">Marcar Todos</button>
+                <span style="color: var(--border);">|</span>
+                <button type="button" onclick="toggleAllP4Pecas(false)" style="background: none; border: none; color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: pointer; padding: 0;">Desmarcar</button>
+            </div>
+        </div>
+        <input type="text" id="p4SearchPecas" class="search-input" placeholder="🔍 Pesquisar produto..." onkeyup="filterP4Pecas()">
+      </div>
+      <div id="p4PecasContainer" class="panel-list"></div>
+    </div>
+
+    <div style="display:flex; flex-direction:column;">
+      <div id="p4Summary" class="summary-bar"></div>
+      <div class="panel-list" style="flex:1; height:auto; display:flex; flex-direction:column; padding: 20px;">
+          <div style="flex:1; min-height: 320px; display:flex; align-items:center; justify-content:center; position:relative;">
+              <canvas id="chartDemanda"></canvas>
+          </div>
+          <div id="p4OficinasBreakdown" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setupDemanda() {
+    let sel = document.getElementById('p4Demanda'); 
+    if (!sel) return;
+    let currentVal = sel.value;
+    sel.innerHTML = '';
+    
+    let optsContainer = document.getElementById('demandaOptionsContainer'); 
+    if (!optsContainer) return;
+    optsContainer.innerHTML = '';
+
+    let selectedTextEl = document.getElementById('demandaSelectedText');
+
+    if (demandasData && demandasData.length > 0) {
+        if (!demandasData.some(d => String(d.id) === String(currentVal))) currentVal = demandasData[0].id;
+        sel.value = currentVal;
+        
+        let activeDem = demandasData.find(d => String(d.id) === String(currentVal));
+        if (selectedTextEl) selectedTextEl.innerText = activeDem ? `${activeDem.orgao} (Proc: ${activeDem.numero || 'N/D'})` : 'Selecione';
+
+        demandasData.forEach(d => {
+            let labelName = `${d.orgao} — Proc: ${d.numero || 'S/N'}`;
+            let o = document.createElement('option'); o.value = d.id; sel.appendChild(o);
+            let optDiv = document.createElement('div'); optDiv.className = 'custom-option'; optDiv.innerText = labelName;
+            optDiv.onclick = (e) => { e.stopPropagation(); selectDemandaOption(d.id, labelName); };
+            optsContainer.appendChild(optDiv);
+        });
+    } else { 
+        if (selectedTextEl) selectedTextEl.innerText = 'Nenhuma demanda cadastrada'; 
+    }
+    updateP4Pecas(); 
+    renderPage4();
+  }
+
+  function toggleDemandaDropdown() {
+    let content = document.getElementById('demandaDropdownContent');
+    if (!content) return;
+    let isHidden = content.style.display === 'none' || content.style.display === '';
+    if (isHidden) {
+        content.style.display = 'flex';
+        let searchInput = document.getElementById('demandaSearchInput');
+        if (searchInput) searchInput.value = '';
+        filterDemandaOptions(); 
+        setTimeout(() => { if (searchInput) searchInput.focus(); }, 50);
+    } else { 
+        content.style.display = 'none'; 
+    }
+  }
+
+  function selectDemandaOption(id, labelName) {
+    let selectedTextEl = document.getElementById('demandaSelectedText');
+    let sel = document.getElementById('p4Demanda');
+    let content = document.getElementById('demandaDropdownContent');
+
+    if (selectedTextEl) selectedTextEl.innerText = labelName; 
+    if (sel) sel.value = id; 
+    if (content) content.style.display = 'none';
+    
+    updateP4Pecas(); 
+    renderPage4();   
+  }
+
+  function filterDemandaOptions(e) {
+    if (e) e.stopPropagation();
+    let searchInput = document.getElementById('demandaSearchInput');
+    if (!searchInput) return;
+    let query = searchInput.value.toLowerCase();
+    let opts = document.querySelectorAll('#demandaOptionsContainer .custom-option');
+    opts.forEach(opt => {
+        let text = opt.innerText.toLowerCase();
+        if (text.includes(query)) opt.style.display = 'block'; else opt.style.display = 'none';
+    });
+  }
+
+  document.addEventListener('click', function(event) {
+    let dropdown = document.getElementById('demandaDropdown'); 
+    let content = document.getElementById('demandaDropdownContent');
+    if (dropdown && content && !dropdown.contains(event.target)) { content.style.display = 'none'; }
+  });
+
+  function filterP4Pecas() {
+    let searchInput = document.getElementById('p4SearchPecas');
+    if (!searchInput) return;
+    let query = searchInput.value.toLowerCase();
+    let labels = document.querySelectorAll('#p4PecasContainer .check-item');
+    labels.forEach(label => {
+      let text = label.innerText.toLowerCase();
+      if(text.includes(query)) label.style.display = 'flex'; else label.style.display = 'none';
+    });
+  }
+
+  function toggleAllP4Pecas(status) {
+      let checkboxes = document.querySelectorAll('#p4PecasContainer input[type="checkbox"]');
+      checkboxes.forEach(cb => { cb.checked = status; });
+      renderPage4();
+  }
+
+  function updateP4Pecas() {
+    let searchInput = document.getElementById('p4SearchPecas');
+    if(searchInput) searchInput.value = '';
+
+    let sel = document.getElementById('p4Demanda');
+    if (!sel || !sel.value) return;
+    let demId = sel.value;
+
+    let activeDem = demandasData.find(d => String(d.id) === String(demId));
+    let itensDemanda = activeDem ? activeDem.itens : [];
+    
+    let cont = document.getElementById('p4PecasContainer'); 
+    if (!cont) return;
+    cont.innerHTML = '';
+    
+    if (itensDemanda.length === 0) {
+        cont.innerHTML = '<span style="font-size:12px; color:var(--text-muted)">Nenhum produto cadastrado neste processo.</span>';
+        return;
+    }
+
+    // Cria chave única combinando Nome + Tamanho para evitar bugs de contagem
+    itensDemanda.forEach(item => {
+      let tamStr = (item.tamanho && item.tamanho !== '-') ? item.tamanho : 'Único';
+      let chaveUnica = `${item.nome}__TAM__${tamStr}`;
+      let nomeCompleto = `${item.nome}${item.descricao ? ` (${item.descricao})` : ''} [Tam: ${tamStr}]`;
+
+      let div = document.createElement('label'); div.className = 'check-item';
+      div.innerHTML = `<input type="checkbox" value="${chaveUnica}" data-nome="${item.nome}" data-tamanho="${tamStr}" checked onchange="renderPage4()"> ${nomeCompleto}`;
+      cont.appendChild(div);
+    });
+    
+    if(chartDemandaInst) { chartDemandaInst.destroy(); chartDemandaInst = null; }
+    let sumEl = document.getElementById('p4Summary'); if(sumEl) sumEl.innerHTML = '';
+    let bkEl = document.getElementById('p4OficinasBreakdown'); if(bkEl) bkEl.innerHTML = '';
+  }
+
+  function renderPage4() {
+    let datesFilter = typeof getFilterDates === 'function' ? getFilterDates() : { start: new Date(0), end: new Date() }; 
+    let sel = document.getElementById('p4Demanda');
+    if (!sel || !sel.value) return;
+    let demId = sel.value;
+
+    let activeDem = demandasData.find(d => String(d.id) === String(demId));
+    if (!activeDem) return;
+
+    let checks = document.querySelectorAll('#p4PecasContainer input:checked'); 
+    let selChaves = Array.from(checks).map(c => c.value);
+    let breakdownCont = document.getElementById('p4OficinasBreakdown');
+
+    if(!selChaves.length) { 
+      if(chartDemandaInst) { chartDemandaInst.destroy(); chartDemandaInst = null; } 
+      let sumEl = document.getElementById('p4Summary');
+      if(sumEl) sumEl.innerHTML = ''; 
+      if(breakdownCont) breakdownCont.innerHTML = ''; 
+      return; 
+    }
+
+    let filtered = rawData.filter(r => {
+        let matchDate = r.dateObj >= datesFilter.start && r.dateObj <= datesFilter.end;
+        let matchDem = String(r.processoId) === String(activeDem.id) || r.processoNome === activeDem.orgao || r.processoNome === activeDem.numero;
+        if (!matchDate || !matchDem) return false;
+
+        let rTam = (r.tamanho && r.tamanho !== '-') ? r.tamanho : 'Único';
+        let rChave = `${r.item}__TAM__${rTam}`;
+        return selChaves.includes(rChave);
+    });
+    
+    let totals = {}; selChaves.forEach(ch => totals[ch] = 0);
+    filtered.forEach(r => {
+        let rTam = (r.tamanho && r.tamanho !== '-') ? r.tamanho : 'Único';
+        let rChave = `${r.item}__TAM__${rTam}`;
+        if(totals[rChave] !== undefined) totals[rChave] += r.producaoDia;
+    });
+    
+    let summaryHTML = '';
+    selChaves.forEach(ch => {
+        let parts = ch.split('__TAM__');
+        let labelShow = `${parts[0]} (Tam: ${parts[1]})`;
+        summaryHTML += `<div class="summary-item">${labelShow}: ${totals[ch]} un</div>`;
+    });
+    let sumEl = document.getElementById('p4Summary');
+    if (sumEl) sumEl.innerHTML = summaryHTML;
+
+    let dates = [...new Set(filtered.map(r => r.data))].sort((a,b) => {
+        let da = a.split('/'), db = b.split('/'); 
+        return new Date(da[2], da[1]-1, da[0]) - new Date(db[2], db[1]-1, db[0]);
+    });
+
+    let datasets = selChaves.map((ch, i) => {
+        let parts = ch.split('__TAM__');
+        let pName = parts[0];
+        let pTam = parts[1];
+        let labelShow = `${pName} [${pTam}]`;
+
+        let colors = ['#1565C0', '#42A5F5', '#1E88E5', '#64B5F6', '#90CAF9', '#2E7D32', '#8E24AA', '#F57F17', '#E91E63', '#00ACC1']; 
+        let c = colors[i % colors.length];
+
+        let data = dates.map(d => {
+          if (typeof isFeriado === 'function' && isFeriado(d, '')) return null;
+          let rs = filtered.filter(x => {
+              let xTam = (x.tamanho && x.tamanho !== '-') ? x.tamanho : 'Único';
+              return x.data === d && x.item === pName && xTam === pTam;
+          });
+          if (rs.length === 0 && typeof isDateWeekend === 'function' && isDateWeekend(d)) return null; 
+          return rs.reduce((a,b) => a + b.producaoDia, 0) || 0;
+        });
+
+        return { label: labelShow, data: data, borderColor: c, backgroundColor: c, tension: 0.3, pointRadius: 4, borderWidth: 3, spanGaps: true };
+    });
+
+    let canvasDemanda = document.getElementById('chartDemanda');
+    if (!canvasDemanda) return;
+    let ctx = canvasDemanda.getContext('2d');
+    if(chartDemandaInst) chartDemandaInst.destroy();
+    
+    let gridColor = typeof getThemeColor === 'function' ? getThemeColor('--chart-grid') : '#e0e0e0'; 
+    let txtColor = typeof getThemeColor === 'function' ? getThemeColor('--text-muted') : '#757575';
+
+    chartDemandaInst = new Chart(ctx, {
+      type: 'line',
+      data: { labels: dates, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { 
+            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: txtColor } }, 
+            x: { grid: { display: false }, ticks: { color: txtColor } } 
+        },
+        plugins: { 
+            legend: { labels: { color: txtColor } }, 
+            datalabels: { display: false } 
+        }
+      }
+    });
+
+    let oficinaTotals = {};
+    filtered.forEach(r => {
+      let rTam = (r.tamanho && r.tamanho !== '-') ? r.tamanho : 'Único';
+      let rChave = `${r.item} [${r.tam}]`; // formatado para exibição
+      let dispName = `${r.item} (Tam: ${rTam})`;
+
+      if(!oficinaTotals[r.oficina]) oficinaTotals[r.oficina] = {};
+      if(!oficinaTotals[r.oficina][dispName]) oficinaTotals[r.oficina][dispName] = 0;
+      oficinaTotals[r.oficina][dispName] += r.producaoDia;
+      if(!oficinaTotals[r.oficina]['_total']) oficinaTotals[r.oficina]['_total'] = 0;
+      oficinaTotals[r.oficina]['_total'] += r.producaoDia;
+    });
+
+    if(Object.keys(oficinaTotals).length === 0) { if(breakdownCont) breakdownCont.innerHTML = ''; return; }
+
+    let breakdownHtml = '<h4 style="margin-top:0; color:var(--text-main); font-size:14px; margin-bottom:15px;">Produção por Oficina (Peças e Tamanhos Selecionados)</h4><div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:10px;">';
+    let sortedOficinas = Object.keys(oficinaTotals).sort((a,b) => oficinaTotals[b]['_total'] - oficinaTotals[a]['_total']);
+    
+    sortedOficinas.forEach(of => {
+        breakdownHtml += `<div style="background:var(--bg-body); padding:10px; border-radius:8px; border:1px solid var(--border);"><div style="font-weight:700; color:var(--primary); font-size:13px; margin-bottom:5px;">${of}</div>`;
+        
+        selChaves.forEach(ch => {
+            let parts = ch.split('__TAM__');
+            let dispName = `${parts[0]} (Tam: ${parts[1]})`;
+            if(oficinaTotals[of][dispName] > 0) {
+                breakdownHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); border-bottom:1px dashed var(--border); padding:2px 0;"><span>${parts[0]} [${parts[1]}]</span> <span style="font-weight:600; color:var(--text-main);">${oficinaTotals[of][dispName]}</span></div>`;
+            }
+        });
+
+        breakdownHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-top:5px;"><span>TOTAL</span> <span style="color:var(--primary);">${oficinaTotals[of]['_total']}</span></div></div>`;
+    });
+    breakdownHtml += '</div>'; 
+    if(breakdownCont) breakdownCont.innerHTML = breakdownHtml;
+  }
+</script>

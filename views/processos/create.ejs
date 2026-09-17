@@ -1,0 +1,371 @@
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<style>
+    .ts-control { border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.375rem 0.75rem; box-shadow: none !important; }
+    .ts-wrapper.single .ts-control { background-color: #fff; }
+    table .ts-control { border: none; background: transparent; }
+    .no-results-link { cursor: pointer; color: #0d6efd; text-decoration: underline; }
+    .no-results-link:hover { color: #0a58ca; }
+
+    /* Remove as setinhas dos inputs numéricos para liberar espaço */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+</style>
+
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Novo Processo</h1>
+    <a href="/processos" class="btn btn-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<% if (typeof error !== 'undefined' && error) { %>
+    <script>document.addEventListener('DOMContentLoaded', () => exibirAviso("<%= error %>"));</script>
+<% } %>
+
+<% if (typeof formData !== 'undefined' && formData.numero_processo) { %>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const setVal = (name, val) => { if(document.querySelector(`[name="${name}"]`)) document.querySelector(`[name="${name}"]`).value = val; };
+            setVal('numero_processo', "<%= formData.numero_processo %>");
+            setVal('orgao', "<%= formData.orgao %>");
+            setVal('data_entrada', "<%= formData.data_entrada %>");
+            setVal('tipo_demanda', "<%= formData.tipo_demanda %>");
+            setVal('situacao', "<%= formData.situacao %>");
+            setVal('link_sei', "<%= formData.link_sei %>");
+            if(document.querySelector('[name="observacao"]')) document.querySelector('[name="observacao"]').value = "<%= formData.observacao %>";
+        });
+    </script>
+<% } %>
+
+<form action="/processos" method="POST" id="formNovoProcesso">
+    <div class="row mb-3 g-3">
+        <div class="col-md-3">
+            <label class="form-label small fw-bold">Número do Processo</label>
+            <input type="text" class="form-control" name="numero_processo" required placeholder="Ex: 2026/001" oninput="this.value = this.value.replace(/\./g, '')">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-bold">Data de Entrada</label>
+            <input type="date" class="form-control" name="data_entrada" required>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-bold">Órgão Solicitante</label>
+            <input type="text" class="form-control" name="orgao">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-bold">Tipo de Demanda</label>
+            <select class="form-select" name="tipo_demanda">
+                <option>DEMANDA PARLAMENTAR</option>
+                <option>DEMANDA EXTERNA</option>
+                <option>DEMANDA INTERNA</option>
+                <option>DEMANDA ESCOLAR</option>
+                <option>OUTROS</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-secondary shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+            <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-basket"></i> Itens do Processo</h6>
+            <div class="d-flex align-items-center">
+                <label class="me-2 small text-muted">Prazo Geral:</label>
+                <input type="date" class="form-control form-control-sm" style="width: 130px;" id="prazoGlobal" onchange="aplicarPrazoGlobal()">
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0 align-middle">
+                    <thead class="table-light small text-center text-uppercase">
+                        <tr>
+                            <th style="min-width: 250px;">Produto</th>
+                            <th style="min-width: 150px;">Descrição</th>
+                            <th style="width: 80px;">Tam.</th> 
+                            <th style="width: 110px;">Solic.</th>
+                            <th style="width: 110px;">Aut.</th>
+                            <th style="width: 110px;">Entr.</th>
+                            <th style="width: 110px;">Falt.</th>
+                            <th style="min-width: 130px;">Prazo</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaItens"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card-footer bg-white py-2">
+            <button type="button" class="btn btn-success btn-sm" onclick="adicionarLinha()">
+                <i class="bi bi-plus-lg"></i> Adicionar Item
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm ms-2" onclick="abrirModalCriacao('')">
+                <i class="bi bi-magic"></i> Novo Produto (Rápido)
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm ms-1" onclick="atualizarListaProdutos()" title="Recarregar lista">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-3 g-3">
+        <div class="col-md-3">
+            <label class="form-label small fw-bold">Status Geral</label>
+            <select class="form-select" name="status" id="statusGeral">
+                <option value="ENTREGA NÃO INICIADA" class="text-danger fw-bold">ENTREGA NÃO INICIADA</option>
+                <option value="PARCIAMENTE ENTREGUE" class="text-warning fw-bold">PARCIAMENTE ENTREGUE</option>
+                <option value="DEMANDA CONCLUÍDA" class="text-success fw-bold">DEMANDA CONCLUÍDA</option>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label small fw-bold">Situação (Detalhe)</label>
+            <input type="text" class="form-control" name="situacao" placeholder="Ex: Aguardando liberação...">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-bold">Link do SEI</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-link-45deg"></i></span>
+                <input type="url" class="form-control border-start-0" name="link_sei" placeholder="https://sei.ma.gov.br/..." autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-5">
+        <label class="form-label small fw-bold">Observações</label>
+        <textarea class="form-control" name="observacao" rows="2"></textarea>
+    </div>
+
+    <div class="fixed-bottom bg-white border-top p-3 text-end shadow-lg" style="z-index: 1000; left: 0;"> 
+        <div class="container-fluid pe-5">
+             <button type="submit" class="btn btn-primary px-5 fw-bold">
+                <i class="bi bi-check-lg"></i> Salvar Processo
+            </button>
+        </div>
+    </div>
+    <div style="height: 80px;"></div>
+</form>
+
+<div class="modal fade" id="modalAviso" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-warning">
+            <div class="modal-header bg-warning text-dark py-2">
+                <h6 class="modal-title fw-bold">Atenção</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3" id="textoAviso"></div>
+            <div class="modal-footer py-1 justify-content-center">
+                <button type="button" class="btn btn-sm btn-dark px-3" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNovoProduto" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cadastrar Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nome do Produto</label>
+                    <input type="text" class="form-control" id="nomeNovoProduto" autocomplete="off">
+                    <div class="form-text">Será adicionado e selecionado automaticamente.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarProdutoModal()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+    let produtosCache = <%- JSON.stringify(itens || []) %>;
+
+    function exibirAviso(msg) { 
+        document.getElementById('textoAviso').innerText = msg; 
+        new bootstrap.Modal(document.getElementById('modalAviso')).show();
+    }
+
+    window.abrirModalCriacao = function(nomeSugerido) {
+        const input = document.getElementById('nomeNovoProduto');
+        input.value = nomeSugerido || '';
+        new bootstrap.Modal(document.getElementById('modalNovoProduto')).show();
+        setTimeout(() => input.focus(), 500);
+    };
+
+    function criarHTMLOptions(selId = null) {
+        let opts = '<option value="">Buscar...</option>';
+        produtosCache.forEach(p => { 
+            const sel = (p.id == selId) ? 'selected' : '';
+            opts += `<option value="${p.id}" ${sel}>${p.nome}</option>`; 
+        });
+        return opts;
+    }
+
+    function atualizarStatusGeral() {
+        const rows = document.querySelectorAll('#listaItens tr');
+        let totalAut = 0;
+        let totalEnt = 0;
+
+        rows.forEach(row => {
+            const aut = parseInt(row.querySelector('[name="qtd_autorizada"]').value) || 0;
+            const ent = parseInt(row.querySelector('[name="qtd_entregue"]').value) || 0;
+            totalAut += aut;
+            totalEnt += ent;
+        });
+
+        const selectStatus = document.getElementById('statusGeral');
+
+        if (rows.length === 0 || totalAut === 0 || totalEnt === 0) {
+            selectStatus.value = "ENTREGA NÃO INICIADA";
+        } else if (totalEnt > 0 && totalEnt < totalAut) {
+            selectStatus.value = "PARCIAMENTE ENTREGUE";
+        } else if (totalEnt >= totalAut) {
+            selectStatus.value = "DEMANDA CONCLUÍDA";
+        }
+    }
+
+    function adicionarLinha(preSelecionadoId = null) {
+        const tbody = document.getElementById('listaItens');
+        const prazo = document.getElementById('prazoGlobal').value;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="p-0">
+                <select class="tom-select-init" name="item_id" required>
+                    ${criarHTMLOptions(preSelecionadoId)}
+                </select>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm border-0" 
+                       name="descricao" placeholder="Detalhes..." autocomplete="off">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm text-center border-0" 
+                        name="tamanho" placeholder="-" autocomplete="off">
+            </td>
+            <td><input type="number" class="form-control form-control-sm text-center border-0" name="qtd_solicitada" value="0" min="0" oninput="validarValores(this)"></td>
+            <td><input type="number" class="form-control form-control-sm text-center border-0" name="qtd_autorizada" value="0" min="0" oninput="validarValores(this)"></td>
+            <td><input type="number" class="form-control form-control-sm text-center border-0" name="qtd_entregue" value="0" min="0" oninput="validarValores(this)"></td>
+            <td class="bg-light"><input type="number" class="form-control form-control-sm text-center border-0 bg-light fw-bold text-danger" name="qtd_faltante" value="0" readonly tabindex="-1"></td>
+            <td><input type="date" class="form-control form-control-sm border-0 prazo-row" name="data_prazo" value="${prazo}"></td>
+            <td class="text-center align-middle">
+                <button type="button" class="btn btn-link text-danger p-0" onclick="removerLinha(this)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+
+        new TomSelect(tr.querySelector('.tom-select-init'), {
+            create: false,
+            sortField: { field: "text", direction: "asc" },
+            placeholder: "Digite para buscar...",
+            dropdownParent: 'body',
+            render: {
+                no_results: function(data, escape) {
+                     return '<div class="no-results p-2 text-muted text-center">' +
+                            '<i class="bi bi-exclamation-circle"></i> Não encontrado.<br>' +
+                            '<a href="#" class="no-results-link fw-bold" onclick="abrirModalCriacao(\'' + escape(data.input) + '\'); return false;">' +
+                            'Criar "' + escape(data.input) + '"?</a>' +
+                            '</div>';
+                }
+            }
+        });
+
+        atualizarStatusGeral();
+    }
+
+    function removerLinha(btn) {
+        const row = btn.closest('tr');
+        if(row.querySelector('select').tomselect) row.querySelector('select').tomselect.destroy();
+        row.remove();
+        atualizarStatusGeral();
+    }
+
+    // NOVA LÓGICA: Calcula e exibe excedentes livremente, sem bloquear.
+    function validarValores(input) {
+        const row = input.closest('tr');
+        let sol = parseInt(row.querySelector('[name="qtd_solicitada"]').value) || 0;
+        let aut = parseInt(row.querySelector('[name="qtd_autorizada"]').value) || 0;
+        let inEnt = row.querySelector('[name="qtd_entregue"]');
+        let ent = parseInt(inEnt.value) || 0;
+        
+        let faltante = aut - ent;
+        row.querySelector('[name="qtd_faltante"]').value = (faltante < 0 ? 0 : faltante);
+
+        // Aviso visual comparando com a Solicitada
+        let warningSpan = row.querySelector('.extra-warning');
+        if (ent > sol) {
+            let extra = ent - sol;
+            if (!warningSpan) {
+                warningSpan = document.createElement('div');
+                warningSpan.className = 'extra-warning text-danger small fw-bold mt-1';
+                inEnt.parentElement.appendChild(warningSpan);
+            }
+            warningSpan.innerHTML = `<i class="bi bi-exclamation-circle"></i> +${extra} extra!`;
+        } else {
+            if (warningSpan) warningSpan.remove();
+        }
+
+        atualizarStatusGeral();
+    }
+
+    function aplicarPrazoGlobal() {
+        const val = document.getElementById('prazoGlobal').value;
+        document.querySelectorAll('.prazo-row').forEach(el => el.value = val);
+    }
+
+    async function salvarProdutoModal() {
+        const input = document.getElementById('nomeNovoProduto');
+        if (!input.value) return exibirAviso("Nome obrigatório!");
+        
+        try {
+            const res = await fetch('/itens/api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: input.value })
+            });
+            if (res.ok) {
+                const novo = await res.json();
+                produtosCache.push(novo);
+                produtosCache.sort((a, b) => a.nome.localeCompare(b.nome));
+                
+                document.querySelectorAll('select[name="item_id"]').forEach(s => {
+                    if (s.tomselect) {
+                        s.tomselect.addOption({value: novo.id, text: novo.nome});
+                        s.tomselect.refreshOptions(false);
+                    }
+                });
+                const modalEl = document.getElementById('modalNovoProduto');
+                bootstrap.Modal.getInstance(modalEl).hide();
+                input.value = '';
+                adicionarLinha(novo.id);
+            } else {
+                exibirAviso('Erro ao salvar produto.');
+            }
+        } catch (e) { console.error(e); exibirAviso('Erro de conexão.'); }
+    }
+
+    async function atualizarListaProdutos() {
+        const res = await fetch('/processos/api/itens');
+        if (res.ok) {
+            produtosCache = await res.json();
+            location.reload();
+        }
+    }
+
+    <% if (typeof formData === 'undefined' || !formData.item_id) { %>
+        document.addEventListener('DOMContentLoaded', () => adicionarLinha());
+    <% } %>
+</script>

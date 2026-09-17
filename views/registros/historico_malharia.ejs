@@ -1,0 +1,379 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 text-primary">
+        <i class="bi bi-clock-history"></i> Histórico: <%= malharia.nome %>
+    </h1>
+    <div>
+        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+    </div>
+</div>
+
+<!-- BARRA DE FILTROS AUTOMÁTICOS -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-secondary">Data Inicial</label>
+                <input type="date" id="filtroDataInicio" class="form-control" onchange="aplicarFiltros()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-secondary">Data Final</label>
+                <input type="date" id="filtroDataFim" class="form-control" onchange="aplicarFiltros()">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Busca Rápida (Processo, Órgão, Item...)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" id="filtroBusca" class="form-control border-start-0 ps-0" placeholder="Digite para filtrar na hora..." onkeyup="aplicarFiltros()" autocomplete="off">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GRÁFICO DA LINHA DO TEMPO CORRIGIDO (ALTURA FIXA NA DIV PAI) -->
+<div class="card shadow-sm mb-4 border-0" id="cardGrafico">
+    <div class="card-body" style="position: relative; height: 350px; width: 100%;">
+        <canvas id="graficoEvolucao"></canvas>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        
+        <% if (registros.length === 0) { %>
+            <div class="alert alert-secondary text-center py-5 border-dashed" id="alertZeroRegistrosBanco">
+                <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+                Nenhuma produção registrada para esta malharia no sistema.
+            </div>
+        <% } else { %>
+            
+            <div class="alert alert-secondary text-center py-5 border-dashed d-none" id="msgNenhumEncontrado">
+                <i class="bi bi-funnel fs-1 text-muted d-block mb-3"></i>
+                Nenhum registro corresponde aos filtros atuais.
+            </div>
+
+            <div class="row g-4" id="gridCardsRegistros">
+                <% registros.forEach(function(reg) { %>
+                    <% 
+                        let totalProd = 0;
+                        let searchString = `${reg.usuario ? reg.usuario.nome : ''} ${reg.observacao || ''} ${reg.justificativa ? reg.justificativa.nome : ''}`;
+
+                        if(reg.itens) {
+                            reg.itens.forEach(i => {
+                                totalProd += i.qtd_produzida;
+                                searchString += ` ${i.processo ? i.processo.numero_processo : ''} ${i.processo ? i.processo.orgao : ''} ${i.item ? i.item.nome : ''}`;
+                            });
+                        }
+                        
+                        let percentual = reg.meta_calculada > 0 ? Math.round((totalProd / reg.meta_calculada) * 100) : 0;
+                        let corBarra = percentual >= 100 ? 'bg-success' : (percentual >= 70 ? 'bg-warning' : 'bg-danger');
+                        
+                        const dataObj = new Date(reg.data_registro + "T12:00:00");
+                        const diaStr = String(dataObj.getDate()).padStart(2, '0');
+                        const mesStr = String(dataObj.getMonth() + 1).padStart(2, '0');
+                        const anoStr = dataObj.getFullYear();
+                        const dataFormatada = `${diaStr}/${mesStr}/${anoStr}`;
+                        searchString += ` ${dataFormatada}`;
+                    %>
+                    
+                    <div class="col-md-6 col-lg-4 card-registro-item" 
+                         data-data="<%= reg.data_registro %>" 
+                         data-busca="<%= searchString.toLowerCase() %>" 
+                         data-total="<%= totalProd %>" 
+                         data-meta="<%= Math.round(reg.meta_calculada) || 0 %>">
+                         
+                        <div class="card h-100 shadow-sm border-start border-4 <%= percentual >= 100 ? 'border-success' : 'border-warning' %>">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                                <span class="fw-bold text-dark fs-5"><i class="bi bi-calendar-event"></i> <%= dataFormatada %></span>
+                                <span class="badge bg-light text-dark border" title="Internos trabalhando"><i class="bi bi-people-fill"></i> <%= reg.qtd_internos %></span>
+                            </div>
+                            
+                            <div class="card-body pb-2">
+                                <div class="small text-muted mb-2">
+                                    <i class="bi bi-person-circle text-primary"></i> <span class="fw-bold"><%= reg.usuario ? reg.usuario.nome : 'Desconhecido' %></span> registrou
+                                </div>
+
+                                <% if (reg.aviso_sistema) { %>
+                                    <div class="alert alert-danger py-1 px-2 small mt-2 mb-2 border-danger border-start border-4">
+                                        <strong><i class="bi bi-exclamation-octagon-fill"></i> Aviso:</strong> <%= reg.aviso_sistema %>
+                                    </div>
+                                <% } %>
+                                
+                                <ul class="list-unstyled mb-2 small text-secondary border-top pt-2" style="min-height: 50px;">
+                                <% if(reg.itens && reg.itens.length > 0) { reg.itens.slice(0, 3).forEach(function(item) { %>
+                                    <li class="text-truncate">
+                                        <span class="badge bg-secondary opacity-75">
+                                            <%= item.processo && item.processo.orgao ? item.processo.orgao : 'S/ Órgão' %>
+                                        </span>
+                                        <%= item.item ? item.item.nome : 'Desconhecido' %> 
+                                        (<%= item.qtd_produzida %> un)
+                                    </li>
+                                <% }); %>
+                                <% if(reg.itens.length > 3) { %> <li><small class="text-muted fst-italic">+ <%= reg.itens.length - 3 %> outros...</small></li> <% } } else { %>
+                                    <li class="text-muted fst-italic">Nenhum produto cadastrado</li>
+                                <% } %>
+                                </ul>
+
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between small fw-bold mb-1">
+                                        <span>Meta: <%= percentual %>%</span>
+                                        <span><%= totalProd %> / <%= Math.round(reg.meta_calculada) %> un</span>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar <%= corBarra %>" role="progressbar" style="width: <%= percentual %>%"></div>
+                                    </div>
+                                </div>
+                                
+                                <% if(reg.justificativa && totalProd === 0) { %>
+                                    <div class="mt-2 text-warning small fw-bold"><i class="bi bi-exclamation-triangle"></i> Sem Produção: <%= reg.justificativa.nome %></div>
+                                <% } else if(reg.justificativa) { %>
+                                    <div class="mt-2 text-danger small"><i class="bi bi-exclamation-triangle"></i> <%= reg.justificativa.nome %></div>
+                                <% } %>
+                            </div>
+                            
+                            <div class="card-footer bg-light d-flex justify-content-end gap-2 border-top-0 pt-2">
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="abrirModalDetalhes('<%= reg.id %>')">
+                                    <i class="bi bi-card-list"></i> Detalhes
+                                </button>
+
+                                <% if (user.nivel >= 3) { %>
+                                    <a href="/registros/<%= reg.id %>/edit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil-square"></i> Editar</a>
+                                <% } %>
+                            </div>
+
+                            <div id="detalhes-html-<%= reg.id %>" class="d-none">
+                                <div class="row mb-3 bg-light p-3 rounded">
+                                    <div class="col-6">
+                                        <strong><i class="bi bi-calendar"></i> Data:</strong> <%= dataFormatada %><br>
+                                        <strong><i class="bi bi-people"></i> Internos:</strong> <%= reg.qtd_internos %><br>
+                                        <strong><i class="bi bi-bullseye"></i> Meta Diária:</strong> <%= Math.round(reg.meta_calculada) %> un
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <strong><i class="bi bi-check2-circle"></i> Produzido:</strong> <span class="text-success fw-bold"><%= totalProd %> un</span><br>
+                                        <strong><i class="bi bi-percent"></i> Concluído:</strong> <%= percentual %>%
+                                    </div>
+                                </div>
+                                
+                                <h6 class="fw-bold border-bottom pb-1 text-primary"><i class="bi bi-boxes"></i> Inventário Produzido</h6>
+                                <div class="table-responsive mb-3">
+                                    <table class="table table-sm table-striped table-bordered align-middle text-center">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Processo / Órgão</th>
+                                                <th>Produto</th>
+                                                <th>Descrição</th>
+                                                <th>Tamanho</th>
+                                                <th>Qtd. Produzida</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if(reg.itens) { reg.itens.forEach(function(item) { %>
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-secondary"><%= item.processo ? item.processo.numero_processo : '-' %></span>
+                                                        <div class="small text-muted mt-1" style="font-size: 0.75rem;"><%= item.processo && item.processo.orgao ? item.processo.orgao : '' %></div>
+                                                    </td>
+                                                    <td class="text-start fw-bold"><%= item.item ? item.item.nome : 'Desconhecido' %></td>
+                                                    <td class="text-muted small">
+                                                        <% let descCompleta = item.descricao || (item.item ? item.item.descricao : ''); %>
+                                                        <%= descCompleta ? descCompleta : '-' %>
+                                                    </td>
+                                                    <td><%= item.tamanho || (item.item && item.item.tamanho) || '-' %></td>
+                                                    <td class="fw-bold text-success fs-6"><%= item.qtd_produzida %></td>
+                                                </tr>
+                                            <% }); } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <% if(reg.justificativa) { %>
+                                    <div class="mb-3">
+                                        <strong class="<%= totalProd === 0 ? 'text-warning' : 'text-danger' %>"><i class="bi bi-exclamation-triangle"></i> <%= totalProd === 0 ? 'Motivo da Falta de Produção:' : 'Justificativa de Quebra de Meta:' %></strong> 
+                                        <div class="border <%= totalProd === 0 ? 'border-warning text-warning-emphasis bg-warning bg-opacity-10' : 'border-danger text-danger' %> p-2 rounded mt-1">
+                                            <%= reg.justificativa.nome %>
+                                        </div>
+                                    </div>
+                                <% } %>
+
+                                <% if(reg.observacao) { %>
+                                    <div class="mb-2">
+                                        <strong class="text-secondary"><i class="bi bi-chat-text"></i> Observações Adicionais:</strong>
+                                        <p class="text-muted small border p-2 rounded bg-white mt-1" style="white-space: pre-wrap;"><%= reg.observacao %></p>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDetalhesRegistro" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="detalhesModalTitle"><i class="bi bi-card-list"></i> Detalhes da Produção</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light" id="detalhesModalBody"></div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CARREGA O CHART.JS PARA O GRÁFICO -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    function abrirModalDetalhes(registroId) {
+        const conteudoOriginal = document.getElementById('detalhes-html-' + registroId).innerHTML;
+        document.getElementById('detalhesModalBody').innerHTML = conteudoOriginal;
+        new bootstrap.Modal(document.getElementById('modalDetalhesRegistro')).show();
+    }
+
+    // Variáveis e Lógica do Gráfico + Filtros
+    let chartInstance = null;
+    const registrosCards = document.querySelectorAll('.card-registro-item');
+    const msgVazia = document.getElementById('msgNenhumEncontrado');
+
+    function initChart() {
+        const ctx = document.getElementById('graficoEvolucao');
+        if (!ctx) return;
+        
+        chartInstance = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    title: { 
+                        display: true, 
+                        text: 'Comparativo: Total Produzido x Meta Diária',
+                        font: { size: 14 }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true,
+                        title: { display: true, text: 'Peças' }
+                    } 
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+
+    function aplicarFiltros() {
+        const dtIni = document.getElementById('filtroDataInicio').value;
+        const dtFim = document.getElementById('filtroDataFim').value;
+        const busca = document.getElementById('filtroBusca').value.toLowerCase().trim();
+
+        let visibleData = [];
+        let countVisible = 0;
+
+        registrosCards.forEach(card => {
+            const dataCard = card.getAttribute('data-data'); // YYYY-MM-DD
+            const textoBusca = card.getAttribute('data-busca');
+            const total = parseInt(card.getAttribute('data-total')) || 0;
+            const meta = parseInt(card.getAttribute('data-meta')) || 0;
+
+            let show = true;
+
+            // Filtros de Data
+            if (dtIni && dataCard < dtIni) show = false;
+            if (dtFim && dataCard > dtFim) show = false;
+            
+            // Filtro de Texto
+            if (busca && !textoBusca.includes(busca)) show = false;
+
+            if (show) {
+                card.style.display = '';
+                countVisible++;
+                visibleData.push({ data: dataCard, total, meta });
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Alterna a mensagem de "Não encontrado"
+        if (msgVazia) {
+            if (countVisible === 0) {
+                msgVazia.classList.remove('d-none');
+                document.getElementById('cardGrafico').classList.add('d-none');
+            } else {
+                msgVazia.classList.add('d-none');
+                document.getElementById('cardGrafico').classList.remove('d-none');
+            }
+        }
+
+        atualizarGrafico(visibleData);
+    }
+
+    function atualizarGrafico(data) {
+        if (!chartInstance) return;
+
+        // Agrupa os registros pela mesma data (caso tenha mais de um lançamento no mesmo dia na malharia)
+        const dadosAgrupados = {};
+        data.forEach(d => {
+            if (!dadosAgrupados[d.data]) {
+                dadosAgrupados[d.data] = { total: 0, meta: d.meta };
+            }
+            dadosAgrupados[d.data].total += d.total;
+        });
+
+        // Ordena cronologicamente do mais antigo pro mais novo para a linha ficar correta
+        const chavesOrdenadas = Object.keys(dadosAgrupados).sort();
+
+        const labels = chavesOrdenadas.map(k => k.split('-').reverse().join('/'));
+        const dataTotal = chavesOrdenadas.map(k => dadosAgrupados[k].total);
+        const dataMeta = chavesOrdenadas.map(k => dadosAgrupados[k].meta);
+
+        chartInstance.data.labels = labels;
+        chartInstance.data.datasets = [
+            {
+                label: 'Produzido (Soma do dia)',
+                data: dataTotal,
+                borderColor: '#198754', // success
+                backgroundColor: 'rgba(25, 135, 84, 0.2)',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.2
+            },
+            {
+                label: 'Meta Calculada',
+                data: dataMeta,
+                borderColor: '#0d6efd', // primary
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: false,
+                tension: 0.2
+            }
+        ];
+        chartInstance.update();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initChart();
+        aplicarFiltros(); // Alimenta a tabela a primeira vez
+    });
+</script>

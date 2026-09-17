@@ -1,0 +1,142 @@
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Tipos de Maquinário</h1>
+    <a href="/maquinarios" class="btn btn-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-danger"><%= error %></div>
+<% } %>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Novo Tipo</h6>
+            </div>
+            <div class="card-body">
+                <form action="/maquinarios/tipos" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nome do Tipo</label>
+                        <input type="text" class="form-control" name="nome" placeholder="Ex: Costura Reta" required autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-plus-circle"></i> Adicionar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th class="text-end" style="width: 120px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (tipos.length === 0) { %>
+                            <tr><td colspan="2" class="text-center text-muted">Nenhum tipo cadastrado.</td></tr>
+                        <% } else { %>
+                            <% tipos.forEach(t => { %>
+                                <tr>
+                                    <td><%= t.nome %></td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary border-0 me-1" 
+                                                onclick="abrirModalEdicao('<%= t.id %>', '<%= t.nome %>')">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-sm btn-outline-danger border-0" 
+                                                onclick="abrirModalExclusaoTipo('<%= t.id %>', '<%= t.nome %>')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarTipo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Tipo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarTipo" method="POST" action="">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome do Tipo</label>
+                        <input type="text" class="form-control" id="inputNomeEdicao" name="nome" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalExcluirTipo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Excluir Tipo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-1">Deseja realmente apagar o tipo:</p>
+                <h5 id="nomeTipoExcluir" class="fw-bold"></h5>
+                <p class="text-muted small">Isso pode remover a classificação das máquinas associadas.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExcluirTipo" method="POST" action="">
+                    <button type="submit" class="btn btn-danger px-4">Confirmar Exclusão</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Função para abrir o modal de Edição
+    function abrirModalEdicao(id, nome) {
+        const modalEl = document.getElementById('modalEditarTipo');
+        const inputNome = document.getElementById('inputNomeEdicao');
+        const form = document.getElementById('formEditarTipo');
+
+        inputNome.value = nome;
+        form.action = `/maquinarios/tipos/${id}/update`;
+
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        setTimeout(() => inputNome.focus(), 500);
+    }
+
+    // Função para abrir o modal de Exclusão
+    function abrirModalExclusaoTipo(id, nome) {
+        const modalEl = document.getElementById('modalExcluirTipo');
+        const nomeEl = document.getElementById('nomeTipoExcluir');
+        const form = document.getElementById('formExcluirTipo');
+
+        nomeEl.innerText = nome;
+        form.action = `/maquinarios/tipos/${id}/delete`;
+
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+</script>

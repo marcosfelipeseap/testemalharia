@@ -1,0 +1,162 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-printer"></i> Máquinas de Impressão</h1>
+    <% if (user.nivel >= 3) { %>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovaMaquina">
+            <i class="bi bi-plus-lg"></i> Nova Máquina
+        </button>
+    <% } %>
+</div>
+
+<div class="card shadow-sm border-top border-primary border-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Nome da Máquina</th>
+                        <th>Localização (Malharia)</th>
+                        <% if (user.nivel >= 3) { %>
+                            <th class="text-end pe-4" style="width: 150px;">Ações</th>
+                        <% } %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (maquinas.length === 0) { %>
+                        <tr>
+                            <td colspan="<%= user.nivel >= 3 ? '3' : '2' %>" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i> Nenhuma máquina cadastrada.
+                            </td>
+                        </tr>
+                    <% } else { %>
+                        <% maquinas.forEach(maq => { %>
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark"><%= maq.nome %></td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        <%= maq.malharia ? maq.malharia.nome : 'Sem vínculo' %>
+                                    </span>
+                                </td>
+                                <% if (user.nivel >= 3) { %>
+                                    <td class="text-end pe-4">
+                                        <button class="btn btn-sm btn-outline-primary me-1" 
+                                                onclick="editarMaquina('<%= maq.id %>', '<%= maq.nome %>', '<%= maq.malharia_id %>')" 
+                                                title="Editar">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <form action="/maquinas-impressao/<%= maq.id %>/delete" method="POST" class="d-inline">
+                                            <!-- AQUI TROCAMOS O CONFIRM PELO MODAL -->
+                                            <button type="button" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="confirmarExclusao(this, 'maquina')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                <% } %>
+                            </tr>
+                        <% }); %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<% if (user.nivel >= 3) { %>
+<!-- Modal Criar -->
+<div class="modal fade" id="modalNovaMaquina" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="/maquinas-impressao" method="POST" class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Cadastrar Máquina</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nome da Máquina (Único)</label>
+                    <input type="text" class="form-control" name="nome" required placeholder="Ex: Impressora L3250 - Setor A">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Local (Malharia)</label>
+                    <select class="form-select" name="malharia_id" required>
+                        <option value="">Selecione...</option>
+                        <% malharias.forEach(mal => { %>
+                            <option value="<%= mal.id %>"><%= mal.nome %></option>
+                        <% }); %>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal fade" id="modalEditarMaquina" tabindex="-1">
+    <div class="modal-dialog">
+        <form id="formEditMaquina" method="POST" class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Editar Máquina</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nome da Máquina</label>
+                    <input type="text" class="form-control" id="editNome" name="nome" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Local (Malharia)</label>
+                    <select class="form-select" id="editMalharia" name="malharia_id" required>
+                        <% malharias.forEach(mal => { %>
+                            <option value="<%= mal.id %>"><%= mal.nome %></option>
+                        <% }); %>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Atualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Confirmação de Exclusão -->
+<div class="modal fade" id="modalConfirmDelete" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle"></i> Confirmação</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3" id="textoConfirmDelete">
+                Tem certeza que deseja excluir esta máquina permanentemente?
+            </div>
+            <div class="modal-footer py-1 justify-content-center">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-danger px-3" id="btnConfirmDelete">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function editarMaquina(id, nome, malharia_id) {
+        document.getElementById('formEditMaquina').action = `/maquinas-impressao/${id}/update`;
+        document.getElementById('editNome').value = nome;
+        document.getElementById('editMalharia').value = malharia_id;
+        new bootstrap.Modal(document.getElementById('modalEditarMaquina')).show();
+    }
+
+    // Lógica do Modal de Exclusão
+    let formToDelete = null;
+    function confirmarExclusao(btn, tipo) {
+        formToDelete = btn.closest('form');
+        new bootstrap.Modal(document.getElementById('modalConfirmDelete')).show();
+    }
+    document.getElementById('btnConfirmDelete').addEventListener('click', function() {
+        if(formToDelete) formToDelete.submit();
+    });
+</script>
+<% } %>

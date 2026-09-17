@@ -1,0 +1,201 @@
+<style>
+    .pulse-dot-success { animation: pulse-dot-success 2s infinite; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #198754; margin-left: 6px; }
+    @keyframes pulse-dot-success { 0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7); } 70% { box-shadow: 0 0 0 5px rgba(25, 135, 84, 0); } 100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); } }
+
+    .pulse-dot-danger { animation: pulse-dot-danger 2s infinite; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #dc3545; margin-left: 6px; }
+    @keyframes pulse-dot-danger { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 70% { box-shadow: 0 0 0 5px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
+</style>
+
+<% 
+    const envAtualMenu = typeof currentEnv !== 'undefined' ? currentEnv : 'malharia';
+    const isInsumosMenu = (envAtualMenu === 'insumos') || (typeof user !== 'undefined' && user && user.cargo === 'controlador');
+%>
+<div class="position-sticky pt-3">
+    
+    <% if (isInsumosMenu) { %>
+        <ul class="nav flex-column mb-auto">
+            <li class="nav-item">
+                <a class="nav-link <%= typeof currentPath !== 'undefined' && currentPath === '/insumos' ? 'active text-primary fw-bold' : '' %>" href="/insumos">
+                    <i class="bi bi-boxes"></i> Controle de Insumos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <%= typeof currentPath !== 'undefined' && currentPath === '/insumos/catalogo' ? 'active' : '' %>" href="/insumos/catalogo">
+                    <i class="bi bi-journal-text"></i> Catálogo Global
+                </a>
+            </li>
+
+            <hr class="my-2 border-secondary opacity-25">
+
+            <!-- MENU TINTAS E BOBINAS -->
+            <li class="nav-item">
+                <a class="nav-link <%= typeof currentPath !== 'undefined' && currentPath.startsWith('/tintas-bobinas') ? 'active text-primary fw-bold' : '' %>" href="/tintas-bobinas">
+                    <i class="bi bi-droplet-half"></i> Tintas e Bobinas
+                </a>
+            </li>
+
+            <!-- MENU IMPRESSÕES -->
+            <li class="nav-item">
+                <a class="nav-link <%= typeof currentPath !== 'undefined' && currentPath.startsWith('/impressoes') ? 'active text-primary fw-bold' : '' %>" href="/impressoes">
+                    <i class="bi bi-printer"></i> Controle de Impressões
+                </a>
+            </li>
+            
+            <% if (typeof user !== 'undefined' && (user.nivel >= 3 || user.cargo === 'controlador')) { %>
+            <li class="nav-item">
+                <a class="nav-link <%= typeof currentPath !== 'undefined' && currentPath.startsWith('/maquinas-impressao') ? 'active text-primary fw-bold' : '' %>" href="/maquinas-impressao">
+                    <i class="bi bi-hdd-network"></i> Máquinas de Impressão
+                </a>
+            </li>
+            <% } %>
+        </ul>
+
+    <% } else { %>
+        <ul class="nav flex-column mb-auto">
+            <% if (typeof user !== 'undefined' && user.nivel >= 3) { %>
+                <li class="nav-item">
+                    <a class="nav-link" href="/registros">
+                        <i class="bi bi-clipboard-check"></i> Registros Gerais
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a class="nav-link <%= typeof currentPath !== 'undefined' && currentPath.startsWith('/solicitacoes') ? 'active' : '' %>" href="/solicitacoes">
+                        <i class="bi bi-envelope-paper"></i> Solicitar Insumos
+                        <% if (typeof pendingSolicitacoesCount !== 'undefined' && pendingSolicitacoesCount > 0) { %>
+                            <span class="badge bg-warning text-dark rounded-pill ms-2 shadow-sm"><%= pendingSolicitacoesCount %> Pendentes</span>
+                        <% } %>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <%= typeof title !== 'undefined' && title === 'Histórico de Relatórios' ? 'active' : '' %>" href="/registros/relatorios">
+                        <i class="bi bi-card-checklist"></i> Histórico de Relatórios
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link " href="/estoque">
+                        <i class="bi bi-boxes"></i> Estoque de Produção
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <%= typeof title !== 'undefined' && title === 'Controle de Cortes' ? 'active' : '' %>" href="/cortes">
+                        <i class="bi bi-scissors"></i> Controle de Cortes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/processos">
+                        <i class="bi bi-file-earmark-text"></i> Processos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/maquinarios">
+                        <i class="bi bi-gear-wide-connected"></i> Maquinários
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/itens">
+                        <i class="bi bi-box-seam"></i> Itens / Produtos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/malharias">
+                        <i class="bi bi-shop"></i> Malharias
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/unidades">
+                        <i class="bi bi-building"></i> Unidades
+                    </a>
+                </li>
+            <% } else if (typeof user !== 'undefined') { %>
+                <li class="nav-item">
+                    <a class="nav-link text-primary fw-bold" href="/registros/painel">
+                        <i class="bi bi-ui-checks-grid"></i> Meu Painel Diário
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/registros/historico">
+                        <i class="bi bi-calendar-range"></i> Registros Anteriores
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link d-flex align-items-center <%= typeof currentPath !== 'undefined' && currentPath.startsWith('/solicitacoes') ? 'active' : '' %>" href="/solicitacoes">
+                        <i class="bi bi-envelope-paper"></i> Solicitar Insumos
+                        <% if (typeof recentAprovadasCount !== 'undefined' && recentAprovadasCount > 0) { %>
+                            <span class="pulse-dot-success" title="Você tem <%= recentAprovadasCount %> pedido(s) ACEITO(S) recentemente!"></span>
+                        <% } %>
+                        <% if (typeof recentRejeitadasCount !== 'undefined' && recentRejeitadasCount > 0) { %>
+                            <span class="pulse-dot-danger" title="Você tem <%= recentRejeitadasCount %> pedido(s) RECUSADO(S) recentemente!"></span>
+                        <% } %>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <%= typeof title !== 'undefined' && title === 'Histórico de Relatórios' ? 'active' : '' %>" href="/registros/relatorios">
+                        <i class="bi bi-card-checklist"></i> Histórico de Relatórios
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-primary fw-bold" href="/estoque">
+                         <i class="bi bi-boxes"></i> Estoque da Oficina
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <%= typeof title !== 'undefined' && title === 'Controle de Cortes' ? 'active' : '' %>" href="/cortes">
+                        <i class="bi bi-scissors"></i> Controle de Cortes
+                    </a>
+                </li>
+
+                <li class="nav-item mt-3">
+                    <a class="nav-link" href="/malharias">
+                        <i class="bi bi-shop"></i> Minhas Malharias
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/maquinarios">
+                        <i class="bi bi-gear-wide-connected"></i> Maquinários
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/itens">
+                        <i class="bi bi-box-seam"></i> Itens Disponíveis
+                    </a>
+                </li>
+            <% } %>
+        </ul>
+    <% } %>
+
+    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-5 mb-1 text-muted text-uppercase">
+        <span style="font-size: 0.75rem;">Conta (<%= typeof user !== 'undefined' ? user.cargo : 'Visitante' %>)</span>
+    </h6>
+    <ul class="nav flex-column mb-2">
+        <li class="nav-item">
+            <a class="nav-link d-flex align-items-center gap-2" href="/usuarios/perfil<%= isInsumosMenu ? '?env=insumos' : '' %>">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center border shadow-sm" 
+                     style="width: 26px; height: 26px; min-width: 26px; font-size: 0.85rem; font-weight: bold; background-size: cover; background-position: center;
+                     <%= typeof user !== 'undefined' && user.avatar ? `background-image: url('${user.avatar}'); color: transparent !important;` : '' %>">
+                    <%= typeof user !== 'undefined' && user.nome ? user.nome.charAt(0).toUpperCase() : 'U' %>
+                </div>
+                Meu Perfil
+            </a>
+        </li>
+
+        <% if (typeof user !== 'undefined' && user.nivel >= 3) { %>
+        <li class="nav-item">
+            <a class="nav-link d-flex align-items-center gap-2" href="/usuarios<%= isInsumosMenu ? '?env=insumos' : '' %>">
+                <i class="bi bi-people" style="font-size: 1.2rem; margin-left: 2px;"></i>
+                Gestão de Usuários
+            </a>
+        </li>
+        <% } %>
+
+        <li class="nav-item">
+            <a class="nav-link text-danger d-flex align-items-center gap-2" href="/auth/logout">
+                <i class="bi bi-box-arrow-right" style="font-size: 1.2rem; margin-left: 2px;"></i>
+                Sair
+            </a>
+        </li>
+    </ul>
+</div>

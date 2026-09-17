@@ -1,0 +1,198 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2"><i class="bi bi-journal-text text-primary"></i> Catálogo Global de Insumos</h1>
+    
+    <% if (user && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#novoItemModal">
+                <i class="bi bi-plus-lg"></i> Adicionar ao Catálogo
+            </button>
+        </div>
+    <% } %>
+</div>
+
+<!-- ALERTA DE ERRO DE DUPLICIDADE -->
+<% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Erro:</strong> <%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<% } %>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="input-group shadow-sm">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="searchCatalogo" class="form-control border-start-0 ps-0" placeholder="Pesquisar tecidos ou aviamentos no catálogo..." onkeyup="filtrarListasCatalogo()">
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Coluna Tecidos -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-success bg-opacity-10 border-success border-opacity-25 py-3">
+                <h5 class="mb-0 fw-bold text-success"><i class="bi bi-layers-half me-2"></i> Tecidos e Malhas</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="listaTecidos">
+                    <% if (tecido.length === 0) { %>
+                        <li class="list-group-item text-muted text-center py-4 item-vazio">Nenhum tecido cadastrado no catálogo.</li>
+                    <% } %>
+                    <% tecido.forEach(item => { %>
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-3 catalogo-item" data-nome="<%= item.nome %>">
+                            <span class="fw-bold text-dark"><%= item.nome %></span>
+                            <% if (user && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-warning border-0" onclick="abrirModalEditarCatalogo('<%= item.id %>', '<%= item.nome %>', 'tecido')"><i class="bi bi-pencil"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="abrirModalExcluirCatalogo('<%= item.id %>', '<%= item.nome %>')"><i class="bi bi-trash"></i></button>
+                                </div>
+                            <% } %>
+                        </li>
+                    <% }) %>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coluna Aviamentos -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header border-opacity-25 py-3" style="background-color: rgba(111, 66, 193, 0.1); border-color: rgba(111, 66, 193, 0.3);">
+                <h5 class="mb-0 fw-bold" style="color: #6f42c1;"><i class="bi bi-paperclip me-2"></i> Aviamentos</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="listaAviamentos">
+                    <% if (aviamento.length === 0) { %>
+                        <li class="list-group-item text-muted text-center py-4 item-vazio">Nenhum aviamento cadastrado no catálogo.</li>
+                    <% } %>
+                    <% aviamento.forEach(item => { %>
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-3 catalogo-item" data-nome="<%= item.nome %>">
+                            <span class="fw-bold text-dark"><%= item.nome %></span>
+                            <% if (user && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-warning border-0" onclick="abrirModalEditarCatalogo('<%= item.id %>', '<%= item.nome %>', 'aviamento')"><i class="bi bi-pencil"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="abrirModalExcluirCatalogo('<%= item.id %>', '<%= item.nome %>')"><i class="bi bi-trash"></i></button>
+                                </div>
+                            <% } %>
+                        </li>
+                    <% }) %>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (user && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+    <!-- Modal Novo Item -->
+    <div class="modal fade" id="novoItemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content shadow border-0" action="/insumos/catalogo/novo" method="POST">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle"></i> Adicionar Insumo ao Catálogo Global</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-bold small text-uppercase">Categoria</label>
+                        <select class="form-select border-primary" name="categoria" required>
+                            <option value="tecido">Tecido / Malha</option>
+                            <option value="aviamento">Aviamento</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-bold small text-uppercase">Nome do Insumo</label>
+                        <input type="text" class="form-control border-primary" name="nome" placeholder="Ex: Malha 100% Algodão, Zíper Invisível..." required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Salvar no Catálogo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Item -->
+    <div class="modal fade" id="modalEditarCatalogo" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content shadow border-0" id="formEditarCatalogo" method="POST">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Editar Item do Catálogo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-bold small text-uppercase">Categoria</label>
+                        <select class="form-select border-warning" name="categoria" id="editCategoriaCatalogo" required>
+                            <option value="tecido">Tecido / Malha</option>
+                            <option value="aviamento">Aviamento</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-bold small text-uppercase">Nome do Insumo</label>
+                        <input type="text" class="form-control border-warning" name="nome" id="editNomeCatalogo" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Excluir Item -->
+    <div class="modal fade" id="modalExcluirCatalogo" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content shadow" id="formExcluirCatalogo" method="POST">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold">Remover do Catálogo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-trash text-danger display-4 d-block mb-3"></i>
+                    <p>Tem a certeza que deseja excluir o item <b id="nomeExcluirCatalogo"></b> do catálogo global?</p>
+                    <p class="text-muted small">Os estoques que já possuem esse produto não serão afetados.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger fw-bold">Sim, Remover</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalEditarCatalogo(id, nome, categoria) {
+            document.getElementById('formEditarCatalogo').action = '/insumos/catalogo/' + id + '/editar';
+            document.getElementById('editNomeCatalogo').value = nome;
+            document.getElementById('editCategoriaCatalogo').value = categoria;
+            new bootstrap.Modal(document.getElementById('modalEditarCatalogo')).show();
+        }
+
+        function abrirModalExcluirCatalogo(id, nome) {
+            document.getElementById('formExcluirCatalogo').action = '/insumos/catalogo/' + id + '/excluir';
+            document.getElementById('nomeExcluirCatalogo').innerText = nome;
+            new bootstrap.Modal(document.getElementById('modalExcluirCatalogo')).show();
+        }
+    </script>
+<% } %>
+
+<script>
+    function filtrarListasCatalogo() {
+        const termo = document.getElementById('searchCatalogo').value.toLowerCase().trim();
+        
+        document.querySelectorAll('.catalogo-item').forEach(li => {
+            const nome = li.getAttribute('data-nome').toLowerCase();
+            
+            if (nome.includes(termo)) {
+                li.classList.remove('d-none');
+                li.classList.add('d-flex');
+            } else {
+                li.classList.remove('d-flex');
+                li.classList.add('d-none');
+            }
+        });
+    }
+</script>

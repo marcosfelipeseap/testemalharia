@@ -1,0 +1,489 @@
+<!-- =========================================================
+     PAGE 6 — CONTROLE DE PROCESSOS (PROCESSOS)
+     ========================================================= -->
+<div id="page5" class="page">
+  <style>
+    .filter-multi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+      background: var(--surface);
+      padding: 15px;
+      border-radius: 12px;
+      border: var(--card-border);
+      box-shadow: var(--shadow);
+    }
+
+    .search-global-container {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: var(--surface);
+      padding: 12px 15px;
+      border-radius: 12px;
+      border: var(--card-border);
+      box-shadow: var(--shadow);
+    }
+    .search-global-container input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--text-main);
+      outline: none;
+      font-size: 14px;
+    }
+
+    .dropdown-check { position: relative; }
+    .dropdown-btn {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      user-select: none;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: var(--shadow);
+      padding-top: 5px;
+    }
+    .dropdown-content.show { display: block; }
+
+    .dropdown-search {
+        width: 90%;
+        margin: 5px 5%;
+        padding: 6px;
+        font-size: 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--bg-body);
+        color: var(--text-main);
+        outline: none;
+    }
+
+    .check-list-container { max-height: 200px; overflow-y: auto; }
+    .check-item { 
+        display: flex; 
+        align-items: center; 
+        padding: 8px 10px; 
+        cursor: pointer; 
+        font-size: 12px; 
+        color: var(--text-muted); 
+        border-bottom: 1px solid var(--border); 
+    }
+    .check-item:hover { background: var(--primary-light); color: var(--primary); }
+    .check-item input { margin-right: 8px; cursor: pointer;}
+
+    .process-table-container {
+      background: var(--surface);
+      border-radius: 12px;
+      border: var(--card-border);
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    .process-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .process-table th {
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+    .process-table td { padding: 12px 15px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+    .proc-row { cursor: pointer; transition: 0.2s; }
+    .proc-row:hover { background: var(--bg-body); }
+    .proc-row.expanded { background: var(--primary-light); }
+
+    .child-row { display: none; background: var(--bg-body); }
+    .child-row.show { display: table-row; }
+    .child-content { padding: 15px; }
+
+    .prod-table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
+    .prod-table th { background: var(--primary-light); color: var(--primary); padding: 8px; border-bottom: 1px solid var(--border); text-align: left; }
+    .prod-table td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+
+    /* CORES DE STATUS RIGOROSAS (Com !important para blindar) */
+    .pill { padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; }
+    .pill-nao-iniciada { background: #FFEBEE !important; color: #C62828 !important; border: 1px solid #FFCDD2 !important; } /* Vermelho */
+    .pill-parcial { background: #FFF9C4 !important; color: #F57F17 !important; border: 1px solid #FFF59D !important; } /* Amarelo */
+    .pill-concluida { background: #E8F5E9 !important; color: #2E7D32 !important; border: 1px solid #C8E6C9 !important; } /* Verde */
+  </style>
+
+  <h2>Controle de Processos</h2>
+
+  <div class="search-global-container">
+      <span class="material-icons" style="font-size:20px; color:var(--text-muted)">search</span>
+      <input type="text" id="globalSearch" placeholder="Pesquisar por processo, órgão, produto ou observação..." onkeyup="handleGlobalSearch()">
+  </div>
+
+  <div class="filter-multi-container">
+      <div class="dropdown-check" id="dd-nprocesso">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted)">Nº PROCESSO</label>
+          <div class="dropdown-btn" onclick="toggleDropdown('list-nprocesso')">Selecionar... <span class="material-icons" style="font-size:16px">expand_more</span></div>
+          <div id="list-nprocesso" class="dropdown-content"></div>
+      </div>
+      <div class="dropdown-check" id="dd-demanda">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted)">TIPO DE DEMANDA</label>
+          <div class="dropdown-btn" onclick="toggleDropdown('list-demanda')">Selecionar... <span class="material-icons" style="font-size:16px">expand_more</span></div>
+          <div id="list-demanda" class="dropdown-content"></div>
+      </div>
+      <div class="dropdown-check" id="dd-orgao">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted)">ÓRGÃO</label>
+          <div class="dropdown-btn" onclick="toggleDropdown('list-orgao')">Selecionar... <span class="material-icons" style="font-size:16px">expand_more</span></div>
+          <div id="list-orgao" class="dropdown-content"></div>
+      </div>
+      <div class="dropdown-check" id="dd-produto">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted)">PRODUTO</label>
+          <div class="dropdown-btn" onclick="toggleDropdown('list-produto')">Selecionar... <span class="material-icons" style="font-size:16px">expand_more</span></div>
+          <div id="list-produto" class="dropdown-content"></div>
+      </div>
+      <div class="dropdown-check" id="dd-status">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted)">STATUS</label>
+          <div class="dropdown-btn" onclick="toggleDropdown('list-status')">Selecionar... <span class="material-icons" style="font-size:16px">expand_more</span></div>
+          <div id="list-status" class="dropdown-content"></div>
+      </div>
+  </div>
+
+  <div class="process-table-container">
+      <table class="process-table">
+          <thead>
+              <tr>
+                  <th style="width:30px"></th>
+                  <th>Nº PROCESSO</th>
+                  <th>TIPO DE DEMANDA</th>
+                  <th>ÓRGÃO</th>
+                  <th>TOTAL AUTORIZADO</th>
+                  <th>TOTAL ENTREGUE</th>
+                  <th>TOTAL FALTANTE</th>
+                  <th>STATUS</th>
+              </tr>
+          </thead>
+          <tbody id="processTableBody">
+          </tbody>
+      </table>
+  </div>
+</div>
+
+<script>
+  let processRawData = [];
+  
+  let p5Filters = { 
+    nProcesso: [], 
+    tipoDemanda: [], 
+    orgao: [], 
+    produtosBasicos: [], // Mapeado para o novo array de produtos base (Camisa, Calça, etc)
+    status: [],
+    searchTerm: "" 
+  };
+
+  const filterMap = [
+      { id: 'list-nprocesso', key: 'nProcesso' },
+      { id: 'list-demanda', key: 'tipoDemanda' },
+      { id: 'list-orgao', key: 'orgao' },
+      { id: 'list-produto', key: 'produtosBasicos' }, // Agora aponta pro Array limpo
+      { id: 'list-status', key: 'status' }
+  ];
+
+  function initProcesses(data) {
+    if(!data) return;
+    processRawData = data;
+    updateAllDropdowns();
+    let page5 = document.getElementById('page5');
+    if (page5 && page5.classList.contains('active')) renderPage5();
+  }
+
+  function handleGlobalSearch() {
+    let globalSearchInput = document.getElementById('globalSearch');
+    if (!globalSearchInput) return;
+    p5Filters.searchTerm = globalSearchInput.value.toLowerCase();
+    renderPage5();
+    updateAllDropdowns(); 
+  }
+
+  function toggleDropdown(id) {
+    let el = document.getElementById(id);
+    if (!el) return;
+    let wasShown = el.classList.contains('show');
+    document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+    if (!wasShown) {
+        el.classList.add('show');
+        let input = el.querySelector('.dropdown-search');
+        if(input) setTimeout(() => input.focus(), 100);
+    }
+  }
+
+  window.addEventListener('click', function(e) {
+      if (!e.target.closest('.dropdown-check')) {
+          document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+      }
+  });
+
+  function filterDropdownList(input) {
+      let filter = input.value.toUpperCase();
+      let container = input.nextElementSibling; 
+      if (!container) return;
+      let items = container.getElementsByClassName('check-item');
+      for (let i = 0; i < items.length; i++) {
+          let txtValue = items[i].textContent || items[i].innerText;
+          items[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) ? "" : "none";
+      }
+  }
+
+  function updateAllDropdowns() {
+      filterMap.forEach(f => buildDropdown(f.id, f.key));
+  }
+
+  function buildDropdown(elementId, key) {
+    // BUG FIX: Quando construímos as opções de UM dropdown, consideramos todos os filtros EXCETO ele mesmo!
+    let availableData = processRawData.filter(r => {
+        if (p5Filters.searchTerm) {
+            const searchStr = `${r.nProcesso} ${r.orgao} ${(r.produtosBasicos||[]).join(' ')} ${r.tipoDemanda} ${r.obs}`.toLowerCase();
+            if (!searchStr.includes(p5Filters.searchTerm)) return false;
+        }
+        for (let prop in p5Filters) {
+            if (prop === key || prop === 'searchTerm') continue; // IGNORA O FILTRO ATUAL (resolve o bug de sumir opções)
+            
+            if (p5Filters[prop].length > 0) {
+                if (Array.isArray(r[prop])) {
+                    if (!p5Filters[prop].some(v => r[prop].includes(v))) return false;
+                } else {
+                    if (!p5Filters[prop].includes(r[prop])) return false;
+                }
+            }
+        }
+        return true;
+    });
+
+    let uniqueValues = new Set();
+    availableData.forEach(r => {
+        if (Array.isArray(r[key])) {
+            r[key].forEach(v => { if(v && String(v).trim() !== '') uniqueValues.add(v); });
+        } else {
+            if(r[key] && String(r[key]).trim() !== '') uniqueValues.add(r[key]);
+        }
+    });
+    
+    uniqueValues = [...uniqueValues].sort();
+
+    let container = document.getElementById(elementId);
+    if (!container) return;
+    let currentSearch = container.querySelector('.dropdown-search')?.value || '';
+
+    container.innerHTML = '';
+    let input = document.createElement('input');
+    input.className = 'dropdown-search';
+    input.placeholder = 'Pesquisar...';
+    input.value = currentSearch;
+    input.onkeyup = function() { filterDropdownList(this); };
+    container.appendChild(input);
+
+    let listDiv = document.createElement('div');
+    listDiv.className = 'check-list-container';
+    
+    if(uniqueValues.length === 0) {
+        listDiv.innerHTML = '<div style="padding:8px; color:var(--text-muted); font-style:italic">Vazio</div>';
+    } else {
+        uniqueValues.forEach(val => {
+            let isChecked = p5Filters[key].includes(val);
+            let div = document.createElement('div');
+            div.className = 'check-item';
+            div.innerHTML = `<input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''}> ${val}`;
+            div.querySelector('input').onchange = function() { updateProcessFilters(key, this); };
+            div.onclick = function(e) {
+                if(e.target.tagName !== 'INPUT') {
+                    let chk = this.querySelector('input');
+                    chk.checked = !chk.checked;
+                    updateProcessFilters(key, chk);
+                }
+            };
+            listDiv.appendChild(div);
+        });
+    }
+    container.appendChild(listDiv);
+    if(currentSearch) filterDropdownList(input);
+  }
+
+  function updateProcessFilters(key, el) {
+    if (el.checked) p5Filters[key].push(el.value);
+    else p5Filters[key] = p5Filters[key].filter(v => v !== el.value);
+    
+    renderPage5();
+    let openDropdown = document.querySelector('.dropdown-content.show');
+    let openDropdownId = openDropdown ? openDropdown.id : null;
+    updateAllDropdowns();
+    if(openDropdownId) {
+        let targetDd = document.getElementById(openDropdownId);
+        if (targetDd) targetDd.classList.add('show');
+        let input = targetDd ? targetDd.querySelector('.dropdown-search') : null;
+        if(input) { input.focus(); let val = input.value; input.value = ''; input.value = val; }
+    }
+  }
+
+  function getStatusClass(statusStr) {
+      if (!statusStr) return 'pill-nao-iniciada';
+      let s = statusStr.toLowerCase().trim();
+      
+      if (s.includes('concluída') || s.includes('concluida') || s.includes('ok')) {
+          return 'pill-concluida'; // VERDE ABSOLUTO
+      } else if (s.includes('parcial') || s.includes('andamento') || s.includes('parcialmente')) {
+          return 'pill-parcial'; // AMARELO ABSOLUTO
+      } else {
+          return 'pill-nao-iniciada'; // VERMELHO ABSOLUTO
+      }
+  }
+
+  function renderPage5() {
+    let tbody = document.getElementById('processTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    let filtered = processRawData.filter(r => {
+        if (p5Filters.searchTerm) {
+            const searchStr = `${r.nProcesso} ${r.orgao} ${(r.produtosBasicos||[]).join(' ')} ${r.tipoDemanda} ${r.obs} ${r.situacao}`.toLowerCase();
+            if (!searchStr.includes(p5Filters.searchTerm)) return false;
+        }
+        if (p5Filters.nProcesso.length && !p5Filters.nProcesso.includes(r.nProcesso)) return false;
+        if (p5Filters.tipoDemanda.length && !p5Filters.tipoDemanda.includes(r.tipoDemanda)) return false;
+        if (p5Filters.orgao.length && !p5Filters.orgao.includes(r.orgao)) return false;
+        if (p5Filters.status.length && !p5Filters.status.includes(r.status)) return false;
+        
+        if (p5Filters.produtosBasicos.length && !p5Filters.produtosBasicos.some(p => (r.produtosBasicos||[]).includes(p))) return false;
+        
+        return true;
+    });
+
+    let groups = {};
+    
+    // Níveis de Status para Agrupamento Inteligente
+    const statusPriority = { 
+        "Entrega não iniciada": 1, 
+        "Parcialmente entregue": 2, 
+        "Demanda concluída": 3 
+    };
+
+    filtered.forEach(r => {
+        let rawProc = r.nProcesso ? r.nProcesso.toString() : '';
+        let sanitizedProc = rawProc.replace(/\./g, '');
+
+        if (!groups[sanitizedProc]) {
+            groups[sanitizedProc] = {
+                nProcesso: rawProc,
+                sanitized: sanitizedProc,
+                linkSei: r.linkSei, 
+                tipoDemanda: r.tipoDemanda, 
+                orgao: r.orgao,
+                status: r.status, 
+                items: [], 
+                totalAutorizado: 0, 
+                totalEntregue: 0, 
+                totalFaltante: 0
+            };
+        } else {
+            let currentStatusPrio = statusPriority[groups[sanitizedProc].status] || 99;
+            let rowStatusPrio = statusPriority[r.status] || 99;
+            
+            // Rebaixa o status global do processo se houver item incompleto
+            if (rowStatusPrio < currentStatusPrio) {
+                groups[sanitizedProc].status = r.status;
+            }
+        }
+        
+        groups[sanitizedProc].items = groups[sanitizedProc].items.concat(r.itens || []);
+        groups[sanitizedProc].totalAutorizado += r.qtdAutorizada || 0;
+        groups[sanitizedProc].totalEntregue += r.qtdEntregue || 0;
+        groups[sanitizedProc].totalFaltante += r.qtdFaltante || 0;
+    });
+
+    let groupArray = Object.values(groups);
+    groupArray.sort((a, b) => (statusPriority[a.status] || 99) - (statusPriority[b.status] || 99));
+
+    if (groupArray.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted)">Nenhum processo encontrado.</td></tr>';
+        return;
+    }
+
+    groupArray.forEach((g, idx) => {
+        let rowId = 'proc-' + idx;
+        let stClass = getStatusClass(g.status);
+
+        let processoHtml = g.nProcesso;
+        if (g.linkSei) {
+            processoHtml = `<a href="${g.linkSei}" target="_blank" onclick="event.stopPropagation()" style="color:var(--primary); text-decoration:none; display:inline-flex; align-items:center; gap:3px;" title="Abrir processo no SEI">
+                                ${g.nProcesso} <span class="material-icons" style="font-size:14px">open_in_new</span>
+                            </a>`;
+        }
+
+        let tr = document.createElement('tr');
+        tr.className = 'proc-row';
+        tr.onclick = function() { toggleRow(this, rowId); };
+        tr.innerHTML = `
+            <td style="text-align:center"><span class="material-icons" style="font-size:16px; color:var(--text-muted)">expand_more</span></td>
+            <td><strong>${processoHtml}</strong></td>
+            <td>${g.tipoDemanda}</td>
+            <td>${g.orgao}</td>
+            <td style="font-weight:700">${g.totalAutorizado}</td>
+            <td style="color:var(--success-text); font-weight: 700;">${g.totalEntregue}</td>
+            <td style="color:var(--danger-text); font-weight: 700;">${g.totalFaltante}</td>
+            <td><span class="pill ${stClass}">${g.status}</span></td>
+        `;
+        tbody.appendChild(tr);
+
+        let trChild = document.createElement('tr');
+        trChild.id = rowId;
+        trChild.className = 'child-row';
+        let childHtml = `<div class="child-content"><table class="prod-table"><thead><tr>
+            <th>Produto</th><th>Data Entrada</th><th>Qtd. Solicitada</th><th>Qtd. Autorizada</th><th>Qtd. Entregue</th>
+            <th style="color:var(--danger-text)">Qtd. Faltante</th><th>Prazo</th><th>Situação / Status</th><th>Obs</th>
+            </tr></thead><tbody>`;
+        
+        g.items.forEach(item => {
+            let itemStatusClass = getStatusClass(item.status);
+            childHtml += `<tr>
+                <td style="font-weight: 600;">${item.produto}</td>
+                <td>${item.dataEntrada}</td>
+                <td>${item.qtdSolicitada}</td>
+                <td style="font-weight: 700;">${item.qtdAutorizada}</td>
+                <td style="color:var(--success-text); font-weight:700">${item.qtdEntregue}</td>
+                <td style="color:var(--danger-text); font-weight:700">${item.qtdFaltante}</td>
+                <td>${item.prazo}</td>
+                <td>
+                    <span style="display:block; font-size: 11px; margin-bottom:4px; font-style: italic; color:var(--text-muted)">${item.situacao}</span>
+                    <span class="pill ${itemStatusClass}" style="font-size: 10px; padding: 2px 6px;">${item.status}</span>
+                </td>
+                <td>${item.obs}</td>
+            </tr>`;
+        });
+        childHtml += `</tbody></table></div>`;
+        trChild.innerHTML = `<td colspan="8" style="padding:0">${childHtml}</td>`;
+        tbody.appendChild(trChild);
+    });
+  }
+
+  function toggleRow(row, childId) {
+    let child = document.getElementById(childId);
+    if (!child) return;
+    row.classList.toggle('expanded');
+    child.classList.toggle('show');
+    let icon = row.querySelector('.material-icons');
+    if (icon) icon.innerText = row.classList.contains('expanded') ? 'expand_less' : 'expand_more';
+  }
+</script>

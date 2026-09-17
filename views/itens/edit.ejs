@@ -1,0 +1,69 @@
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Editar Item</h1>
+    <a href="/itens" class="btn btn-secondary btn-sm">Cancelar</a>
+</div>
+
+<form action="/itens/<%= item.id %>/update" method="POST">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="card-title text-secondary mb-3"><i class="bi bi-box-seam"></i> Informações Básicas</h6>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Nome do Produto</label>
+                    <input type="text" class="form-control" name="nome" required value="<%= item.nome %>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Meta por Máquina (Dia)</label>
+                    <input type="number" class="form-control" name="meta_diaria" min="0" required
+                           value="<%= item.meta_diaria || 0 %>">
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label fw-bold">Descrição</label>
+                    <input type="text" class="form-control" name="descricao" value="<%= item.descricao %>">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0 text-secondary"><i class="bi bi-gear-wide-connected"></i> Máquinas Compatíveis</h6>
+        </div>
+        <div class="card-body">
+            <% if (maquinas.length === 0) { %>
+                <div class="alert alert-warning small">Nenhuma máquina cadastrada.</div>
+            <% } else { %>
+                <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-3">
+                    <% 
+                        // Cria um Set com os IDs das máquinas já vinculadas para busca rápida
+                        const vinculadas = new Set(item.maquinas.map(v => v.maquinario_id));
+                    %>
+                    <% maquinas.forEach(m => { %>
+                        <div class="col">
+                            <div class="form-check p-2 border rounded hover-bg-light 
+                                        <%= vinculadas.has(m.id) ? 'border-primary bg-light' : '' %>">
+                                <input class="form-check-input ms-1" type="checkbox" 
+                                       name="maquina_id[]" value="<%= m.id %>" id="maq_<%= m.id %>"
+                                       <%= vinculadas.has(m.id) ? 'checked' : '' %>>
+                                <label class="form-check-label fw-bold ms-2 w-75" for="maq_<%= m.id %>" style="cursor: pointer;">
+                                    <%= m.nome %>
+                                    <% if(m.tipo) { %>
+                                        <div class="small text-muted fw-normal"><%= m.tipo.nome %></div>
+                                    <% } %>
+                                </label>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="text-end">
+        <button type="submit" class="btn btn-primary px-4 fw-bold">Salvar Alterações</button>
+    </div>
+</form>
+
+<style>
+    .hover-bg-light:hover { background-color: #f8f9fa; }
+</style>

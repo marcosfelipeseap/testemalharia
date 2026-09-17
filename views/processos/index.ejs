@@ -1,0 +1,287 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard de Processos</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="/processos/create" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg"></i> Novo Processo
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4 shadow-sm border-0 bg-light">
+    <div class="card-body py-3">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute text-muted" style="top: 50%; left: 15px; transform: translateY(-50%);"></i>
+            <input type="text" 
+                   class="form-control form-control-lg ps-5 border-0 shadow-sm" 
+                   id="buscaInput" 
+                   placeholder="Pesquise por número, órgão ou situação..." 
+                   value="<%= typeof busca !== 'undefined' ? busca : '' %>"
+                   autocomplete="off">
+        </div>
+        <div class="form-text ms-2 mt-2 text-muted small">
+            <i class="bi bi-magic"></i> A pesquisa é automática enquanto você digita.
+        </div>
+    </div>
+</div>
+
+<div id="processosGrid" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    <% if (processos.length === 0) { %>
+        <div class="col-12 text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+            <p class="mb-0">Nenhum processo encontrado.</p>
+        </div>
+    <% } else { %>
+        <% processos.forEach(processo => { %>
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
+                    <div class="card-header bg-white border-bottom-0 pt-3 d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge rounded-pill <%= processo.status === 'DEMANDA CONCLUÍDA' ? 'bg-success' : (processo.status === 'ENTREGA NÃO INICIADA' ? 'bg-danger' : 'bg-warning text-dark') %> mb-2">
+                                <%= processo.status %>
+                            </span>
+                            <h5 class="card-title mb-0 fw-bold text-primary d-flex align-items-center">
+                                
+                                <!-- Link invisível que faz o card inteiro ir para a página de Detalhes -->
+                                <a href="/processos/<%= processo.id %>" class="stretched-link" title="Ver Detalhes do Processo"></a>
+                                
+                                <!-- Link do SEI restrito SOMENTE ao texto, ficando por cima do link esticado -->
+                                <a href="<%= processo.link_sei ? processo.link_sei : '/processos/' + processo.id %>" 
+                                   class="text-decoration-none text-primary position-relative"
+                                   style="z-index: 2;"
+                                   <%= processo.link_sei ? 'target="_blank"' : '' %>
+                                   title="<%= processo.link_sei ? 'Abrir direto no SEI' : 'Ver Detalhes do Processo' %>">
+                                    Processo <%= processo.numero_processo %>
+                                    <% if (processo.link_sei) { %>
+                                        <i class="bi bi-box-arrow-up-right ms-1 text-secondary" style="font-size: 0.9rem;"></i>
+                                    <% } %>
+                                </a>
+
+                                <% if (processo.temImagem && processo.imagens && processo.imagens.length > 0) { %>
+                                    <button type="button" class="btn btn-link p-0 ms-2 text-success shadow-none position-relative" 
+                                            style="z-index: 2;"
+                                            data-bs-toggle="modal" data-bs-target="#modalDashboardImg-<%= processo.id %>" 
+                                            title="Clique para ver o modelo">
+                                        <i class="bi bi-image fs-5"></i>
+                                    </button>
+                                <% } %>
+                            </h5>
+                        </div>
+                        
+                        <div class="dropdown position-relative" style="z-index: 2;">
+                            <button class="btn btn-light btn-sm rounded-circle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li><a class="dropdown-item" href="/processos/<%= processo.id %>"><i class="bi bi-eye me-2"></i>Ver Detalhes</a></li>
+                                <li><a class="dropdown-item" href="/processos/<%= processo.id %>/edit"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="/processos/<%= processo.id %>/delete" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este processo?');">
+                                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Excluir</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body pt-0 pb-2">
+                        
+                        <p class="card-text text-primary small mb-2 d-inline-block" 
+                           style="cursor: pointer; position: relative; z-index: 2;" 
+                           onclick="mostrarDetalhesFabricacao(this)" 
+                           data-detalhes='<%= JSON.stringify(processo.detailsMalharias || processo.detalhesMalharias || {}) %>' 
+                           data-numero="<%= processo.numero_processo %>"
+                           title="Clique para ver detalhes de produção por malharia">
+                            <i class="bi bi-box-seam me-1"></i> Fabricado: 
+                            <span class="fw-bold" style="border-bottom: 1px dotted #0d6efd;"><%= processo.totalFabricado || 0 %> un</span>
+                        </p>
+
+                        <p class="card-text text-muted small mb-2">
+                            <i class="bi bi-building me-1"></i> <%= processo.orgao || 'Órgão não informado' %>
+                        </p>
+                        <p class="card-text text-muted small mb-3">
+                            <i class="bi bi-calendar-event me-1"></i> 
+                            <%= processo.data_entrada ? new Date(processo.data_entrada).toLocaleDateString('pt-BR') : 'Data n/a' %>
+                        </p>
+                        <div class="p-2 bg-light rounded small text-secondary text-truncate mb-2 position-relative" style="z-index: 2;">
+                            <%= processo.situacao || 'Sem detalhes da situação...' %>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-light border-top py-2 px-3 position-relative" style="z-index: 2;">
+                        <div class="row text-center gx-0">
+                            <div class="col border-end">
+                                <small class="d-block text-muted" style="font-size: 0.65rem; text-transform: uppercase;">Solic.</small>
+                                <span class="fw-bold text-secondary"><%= processo.totais.solicitado %></span>
+                            </div>
+                            <div class="col border-end">
+                                <small class="d-block text-muted" style="font-size: 0.65rem; text-transform: uppercase;">Aut.</small>
+                                <span class="fw-bold text-dark"><%= processo.totais.autorizado %></span>
+                            </div>
+                            <div class="col border-end">
+                                <small class="d-block text-muted" style="font-size: 0.65rem; text-transform: uppercase;">Entr.</small>
+                                <span class="fw-bold text-success"><%= processo.totais.entregue %></span>
+                                <% if (processo.totais.entregue > processo.totais.solicitado) { %>
+                                    <small class="text-danger fw-bold d-block" style="font-size: 0.65rem; margin-top: -2px;" title="Foram entregues <%= processo.totais.entregue - processo.totais.solicitado %> peças a mais do que o total solicitado.">
+                                        +<%= processo.totais.entregue - processo.totais.solicitado %> extra
+                                    </small>
+                                <% } %>
+                            </div>
+                            <div class="col">
+                                <small class="d-block text-muted" style="font-size: 0.65rem; text-transform: uppercase;">Pend.</small>
+                                <span class="fw-bold text-danger"><%= processo.totais.faltante %></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<div class="modal fade" id="modalDetalhesFabricacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white py-2 border-0">
+                <h6 class="modal-title mb-0 fw-bold"><i class="bi bi-clipboard-data"></i> Detalhes de Produção</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-3 bg-light border-bottom text-center">
+                    <span class="text-muted small d-block">Processo</span>
+                    <strong class="text-dark fs-5" id="modalFabricacaoNumProcesso"></strong>
+                </div>
+                <ul class="list-group list-group-flush" id="listaDetalhesMalharias">
+                </ul>
+            </div>
+            <div class="modal-footer py-2 bg-light justify-content-between border-top-0">
+                <small class="text-muted fw-bold text-uppercase" style="font-size: 0.7rem;">Total Fabricado</small>
+                <strong class="text-primary fs-5" id="modalFabricacaoTotal"></strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% processos.forEach(processo => { %>
+    <% if (processo.temImagem && processo.imagens && processo.imagens.length > 0) { %>
+        <div class="modal fade" id="modalDashboardImg-<%= processo.id %>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0">
+                    <div class="modal-header bg-dark text-white border-0">
+                        <h6 class="modal-title fw-bold"><i class="bi bi-images text-success"></i> Modelos - Processo <%= processo.numero_processo %></h6>
+                        <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body bg-light text-center">
+                        <div class="row g-3 justify-content-center">
+                            <% processo.imagens.forEach(img => { %>
+                                <div class="col-12 col-md-10 text-center border-bottom pb-3 mb-2">
+                                    <% if (img.tipo_arquivo === 'application/pdf' || img.nome_arquivo.toLowerCase().endsWith('.pdf')) { %>
+                                        <div class="p-4 border rounded bg-white shadow-sm d-flex flex-column align-items-center justify-content-center mx-auto" style="max-width: 420px;">
+                                            <i class="bi bi-file-earmark-pdf-fill text-danger display-3 mb-2"></i>
+                                            <h6 class="fw-bold text-dark text-truncate w-100 px-2"><%= img.nome_arquivo %></h6>
+                                            <a href="<%= img.url_publica %>" target="_blank" class="btn btn-danger btn-sm mt-2 fw-bold shadow-sm px-3">
+                                                <i class="bi bi-file-pdf"></i> Abrir Arte em Nova Aba
+                                            </a>
+                                        </div>
+                                    <% } else { %>
+                                        <img src="<%= img.url_publica %>" class="img-fluid rounded shadow-sm mb-1" alt="Modelo" style="max-height: 60vh; object-fit: contain;">
+                                        <small class="text-muted d-block mt-1"><%= img.nome_arquivo %></small>
+                                    <% } %>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% } %>
+<% }) %>
+
+<style>
+    .hover-shadow:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+    .transition-all { transition: all 0.3s ease; }
+</style>
+
+<script>
+    let timeout = null;
+    const input = document.getElementById('buscaInput');
+    const grid = document.getElementById('processosGrid');
+    
+    if (input) {
+        input.addEventListener('input', function(e) {
+            const termo = e.target.value;
+
+            clearTimeout(timeout);
+            timeout = setTimeout(async () => {
+                try {
+                    const novaUrl = `/processos?busca=${encodeURIComponent(termo)}`;
+                    window.history.replaceState(null, '', novaUrl);
+                    grid.style.opacity = '0.5';
+                    
+                    const response = await fetch(novaUrl);
+                    const textoHtml = await response.text();
+                    
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(textoHtml, 'text/html');
+                    
+                    const novoGrid = doc.getElementById('processosGrid');
+                    if (novoGrid) {
+                        grid.innerHTML = novoGrid.innerHTML;
+                    }
+                } catch (error) {
+                    console.error('Erro na pesquisa:', error);
+                } finally {
+                    grid.style.opacity = '1';
+                }
+            }, 500);
+        });
+    }
+
+    function mostrarDetalhesFabricacao(element) {
+        const dadosJson = element.getAttribute('data-detalhes');
+        const numProcesso = element.getAttribute('data-numero');
+        let detalhes = {};
+        let total = 0;
+        
+        try {
+            detalhes = JSON.parse(dadosJson);
+        } catch (e) {
+            console.error("Erro ao fazer parse dos detalhes", e);
+        }
+
+        document.getElementById('modalFabricacaoNumProcesso').innerText = numProcesso;
+        const listaEl = document.getElementById('listaDetalhesMalharias');
+        listaEl.innerHTML = '';
+        
+        if (Object.keys(detalhes).length === 0) {
+            listaEl.innerHTML = '<li class="list-group-item text-center text-muted py-4 border-0"><i class="bi bi-inbox d-block mb-2 fs-3 text-secondary"></i>Nenhuma produção registrada.</li>';
+        } else {
+            for (const [nomeMalharia, dadosMalharia] of Object.entries(detalhes)) {
+                total += dadosMalharia.total;
+                
+                let produtosHTML = '';
+                for (const [nomeProduto, qtdProduto] of Object.entries(dadosMalharia.produtos)) {
+                    produtosHTML += `
+                        <div class="d-flex justify-content-between align-items-center mt-2 ps-3 border-start border-2 border-primary border-opacity-25">
+                            <small class="text-dark"><i class="bi bi-arrow-return-right text-muted me-1"></i> ${nomeProduto}</small>
+                            <small class="fw-bold text-secondary">${qtdProduto} un</small>
+                        </div>
+                    `;
+                }
+
+                listaEl.innerHTML += `
+                    <li class="list-group-item py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary fw-bold"><i class="bi bi-shop me-2 text-success"></i> ${nomeMalharia}</span>
+                            <span class="badge bg-success rounded-pill shadow-sm">${dadosMalharia.total} un</span>
+                        </div>
+                        ${produtosHTML}
+                    </li>
+                `;
+            }
+        }
+
+        document.getElementById('modalFabricacaoTotal').innerText = total + " un";
+        const modal = new bootstrap.Modal(document.getElementById('modalDetalhesFabricacao'));
+        modal.show();
+    }
+</script>

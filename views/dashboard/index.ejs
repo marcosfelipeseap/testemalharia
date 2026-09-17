@@ -1,0 +1,204 @@
+<!-- =========================================================
+     PAINEL PÚBLICO — ARQUIVO MESTRE
+     ========================================================= -->
+
+<!-- BARRA DE FILTRO DE TEMPO GLOBAL (COMPARTILHADA ENTRE AS PÁGINAS) -->
+<div class="top-bar" style="background: var(--surface); padding: 15px 20px; border-radius: 12px; box-shadow: var(--shadow); border: var(--card-border); margin-bottom: 25px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+      <span style="font-weight: 700; font-size: 14px; display: block; color: var(--text-main);">Filtro de Período Geral</span>
+      <span style="font-size: 11px; color: var(--text-muted);">Define o intervalo de datas para os relatórios, gráficos, demandas e processos.</span>
+    </div>
+    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+      <div class="filter-group">
+        <label style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 3px;">Data Inicial</label>
+        <input type="date" id="globalStartFilter" onchange="triggerGlobalFilter()" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-main); font-size: 13px;">
+      </div>
+      <div class="filter-group">
+        <label style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 3px;">Data Final</label>
+        <input type="date" id="globalEndFilter" onchange="triggerGlobalFilter()" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-main); font-size: 13px;">
+      </div>
+      <button class="btn-notif btn-notif-sec" onclick="resetGlobalFilter()" style="padding: 6px 12px; font-size: 12px; height: 35px; align-self: flex-end;">Limpar Filtro</button>
+    </div>
+  </div>
+</div>
+
+<script>
+    const rawData = <%- rawDataJSON %>;
+    const feriadosData = <%- feriadosJSON %>;
+    const demandasData = <%- typeof demandasJSON !== 'undefined' ? demandasJSON : '[]' %>;
+    const processosData = <%- typeof processosJSON !== 'undefined' ? processosJSON : '[]' %>;
+    window.infoOficinasEstatico = <%- typeof infoOficinasEstaticoJSON !== 'undefined' ? infoOficinasEstaticoJSON : '[]' %>;
+
+    rawData.forEach(r => {
+        if(typeof r.dateObj === 'string') r.dateObj = new Date(r.dateObj);
+    });
+
+    let selectedOficinas = [];
+    let activeCharts = [];
+    let chartDemandaInst = null;
+    let globalDemandas = [];
+    const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+    function isSemInsumo(just) {
+        if (!just) return false;
+        let txt = just.toLowerCase();
+        return txt.includes('insumo') && (txt.includes('sem') || txt.includes('falta'));
+    }
+
+    function isDateWeekend(dateStr) {
+        if (!dateStr) return false;
+        let p = dateStr.split('/');
+        if (p.length !== 3) return false;
+        let day = new Date(p[2], p[1] - 1, p[0]).getDay();
+        return day === 0 || day === 6;
+    }
+
+    // VERIFICAÇÃO DE FERIADO NO BANCO DE DADOS
+    function isFeriado(dateStr, oficinaName) {
+        return feriadosData.some(f => f.data === dateStr && (f.oficina === 'Todas' || f.oficina === oficinaName));
+    }
+
+    // FILTRO DE TEMPO DINÂMICO GLOBAL
+    function getFilterDates() {
+        let startInput = document.getElementById('globalStartFilter').value;
+        let endInput = document.getElementById('globalEndFilter').value;
+
+        let start = startInput ? new Date(startInput + 'T00:00:00') : new Date(2020, 0, 1);
+        let end = endInput ? new Date(endInput + 'T23:59:59') : new Date(2100, 11, 31);
+
+        return { start, end };
+    }
+
+    function triggerGlobalFilter() {
+        if (document.getElementById('pageOficina') && document.getElementById('pageOficina').classList.contains('active')) {
+            if (typeof renderPageOficina === 'function') renderPageOficina();
+        }
+        if (document.getElementById('page2') && document.getElementById('page2').classList.contains('active')) {
+            if (typeof setupChips === 'function') setupChips();
+        }
+        if (document.getElementById('page3') && document.getElementById('page3').classList.contains('active')) {
+            if (typeof renderPage3 === 'function') renderPage3();
+        }
+        if (document.getElementById('page4') && document.getElementById('page4').classList.contains('active')) {
+            if (typeof setupDemanda === 'function') setupDemanda();
+        }
+        if (document.getElementById('page5') && document.getElementById('page5').classList.contains('active')) {
+            if (typeof initProcesses === 'function') initProcesses(processosData);
+        }
+    }
+
+    function resetGlobalFilter() {
+        document.getElementById('globalStartFilter').value = '';
+        document.getElementById('globalEndFilter').value = '';
+        triggerGlobalFilter();
+    }
+
+    function calculateDynamicMeta(dayRecords) {
+        if (!dayRecords || dayRecords.length === 0) return 0;
+        if (dayRecords.length === 1) return dayRecords[0].metaOficina || 0;
+
+        let maxMeta = Math.max(...dayRecords.map(r => r.metaOficina || 0));
+        let effectiveMetas = dayRecords.map(r => (r.metaOficina || 0) === 0 ? maxMeta : (r.metaOficina || 0));
+
+        let maxProd = -1;
+        let metaDoMaisProduzido = 0;
+        let reached25 = false;
+
+        dayRecords.forEach((r, idx) => {
+            let m = effectiveMetas[idx];
+            if (r.producaoDia > maxProd) {
+                maxProd = r.producaoDia;
+                metaDoMaisProduzido = m;
+            }
+            if (r.producaoDia >= (0.25 * m)) {
+                reached25 = true;
+            }
+        });
+
+        if (reached25) {
+            let sum = effectiveMetas.reduce((a, b) => a + b, 0);
+            return Math.round(sum / effectiveMetas.length);
+        } else {
+            return metaDoMaisProduzido;
+        }
+    }
+
+    // CALCULA DIAS ÚTEIS AUSENTES DESCONSIDERANDO FERIADOS E RECESSOS A PARTIR DO 1º REGISTRO
+    function getMissingBusinessDaysCustom(oficina, allData) {
+        let datesFilter = getFilterDates();
+        let oficinaRecords = allData.filter(r => r.oficina === oficina && r.dateObj >= datesFilter.start && r.dateObj <= datesFilter.end);
+        if (oficinaRecords.length === 0) return [];
+
+        let minDate = new Date(Math.min(...oficinaRecords.map(r => r.dateObj.getTime())));
+        if (minDate < datesFilter.start) minDate = datesFilter.start;
+
+        let presentDates = new Set(oficinaRecords.map(r => r.data));
+        let missing = [];
+        let curr = new Date(minDate);
+        let now = new Date();
+        if (datesFilter.end < now) now = datesFilter.end;
+        if (curr > now) return [];
+
+        let maxRegObj = oficinaRecords.reduce((max, r) => r.dateObj > max ? r.dateObj : max, new Date(0));
+
+        while (curr <= now) {
+            let dayOfWeek = curr.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Dias úteis (Seg a Sex)
+                let dStr = String(curr.getDate()).padStart(2, '0') + '/' + String(curr.getMonth() + 1).padStart(2, '0') + '/' + curr.getFullYear();
+                
+                let inRecess = (curr.getTime() >= new Date(2025, 11, 23).getTime() && curr.getTime() <= new Date(2026, 0, 2).getTime());
+                let isHoliday = isFeriado(dStr, oficina);
+                let isAfterLastReg = (oficina === "GALPÃO 3.1" || oficina === "GALPÃO 3.2") && curr > maxRegObj;
+
+                if (!presentDates.has(dStr) && !inRecess && !isHoliday && !isAfterLastReg) {
+                    missing.push(`${dStr} (${daysOfWeek[dayOfWeek]})`);
+                }
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+        return missing;
+    }
+
+    function getMissingBusinessDays(oficina, startDate, endDate, allData) {
+        return getMissingBusinessDaysCustom(oficina, allData);
+    }
+
+    function wrapText(text, maxLen) {
+        if (text.length <= maxLen) return [text];
+        let words = text.split(' ');
+        let lines = [];
+        let currentLine = '';
+        words.forEach(word => {
+            if ((currentLine + word).length <= maxLen) {
+                currentLine += (currentLine ? ' ' : '') + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        });
+        if (currentLine) lines.push(currentLine);
+        return lines;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const hoje = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const objHoje = new Date(hoje);
+        const yyyy = objHoje.getFullYear();
+        const mm = String(objHoje.getMonth() + 1).padStart(2, '0');
+        const dd = String(objHoje.getDate()).padStart(2, '0');
+        
+        if (document.getElementById('dailyDate')) {
+            document.getElementById('dailyDate').value = `${yyyy}-${mm}-${dd}`;
+            if (typeof renderPage1 === 'function') renderPage1();
+        }
+    });
+</script>
+
+<!-- INCLUSÃO DAS PÁGINAS MODULARES -->
+<%- include('diario') %>
+<%- include('raiox') %>
+<%- include('desempenho') %>
+<%- include('detalhes') %>
+<%- include('demanda') %>
+<%- include('processos') %>

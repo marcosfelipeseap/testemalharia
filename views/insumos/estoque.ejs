@@ -1,0 +1,198 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-capitalize">
+        <% if (categoria === 'tecido') { %>
+            <i class="bi bi-layers-half text-success"></i> Estoque de Tecidos
+        <% } else { %>
+            <i class="bi bi-paperclip" style="color: #6f42c1;"></i> Estoque de Aviamentos
+        <% } %>
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="/insumos" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i> Voltar às Pastas</a>
+        
+        <% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+            <button type="button" class="btn btn-sm btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#novoProdutoModal">
+                <i class="bi bi-plus-lg"></i> Novo Produto
+            </button>
+        <% } %>
+    </div>
+</div>
+
+<% if (insumos.length > 0) { %>
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" id="inputPesquisaProduto" class="form-control border-start-0 ps-0" placeholder="Pesquisar por nome do <%= categoria %>..." onkeyup="filtrarProdutos()">
+            </div>
+        </div>
+    </div>
+<% } %>
+
+<div class="row g-3" id="containerProdutos">
+    <% insumos.forEach(item => { %>
+        <div class="col-12 col-sm-6 col-md-4 col-xl-3 produto-item" data-nome="<%= item.nome.toLowerCase() %>">
+            <div class="card h-100 shadow-sm bg-white" 
+                 style="cursor: pointer; border: 2px solid #e9ecef; transition: all 0.2s ease;" 
+                 onclick="window.location.href='/insumos/<%= malharia_id %>/<%= categoria %>/<%= item.id %>'"
+                 onmouseover="this.style.borderColor='#0d6efd'; this.style.transform='translateY(-3px)'; this.style.boxShadow='0 .5rem 1rem rgba(13, 110, 253, 0.15)';" 
+                 onmouseout="this.style.borderColor='#e9ecef'; this.style.transform='translateY(0)'; this.style.boxShadow='0 .125rem .25rem rgba(0,0,0,.075)';">
+                
+                <div class="card-body d-flex flex-column p-3 w-100 h-100">
+                    
+                    <div class="d-flex justify-content-between align-items-start mb-2 border-bottom pb-2">
+                        <h6 class="fw-bold text-primary mb-0 pe-2 nome-produto" style="line-height: 1.3;"><i class="bi bi-box-seam me-1"></i> <%= item.nome %></h6>
+                        <% if (item.quantidade_total > 0) { %>
+                            <span class="badge bg-success fs-6 shadow-sm" title="Estoque Total"><%= item.quantidade_total %></span>
+                        <% } else { %>
+                            <span class="badge bg-danger shadow-sm" title="Sem Estoque">ZERO</span>
+                        <% } %>
+                    </div>
+                    
+                    <div class="mt-auto w-100 flex-grow-1 d-flex flex-column justify-content-between">
+                        
+                        <% if (item.variacoes && item.variacoes.length > 0) { %>
+                            <div class="mb-3 w-100" style="max-height: 190px; overflow-y: auto; background: #f8f9fa; border-radius: 6px; padding: 8px;">
+                                <% item.variacoes.forEach(v => { %>
+                                    <div class="border-bottom border-light pb-2 mb-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="text-dark fw-bold text-truncate pe-2" style="font-size: 0.85rem;">
+                                                <i class="bi bi-palette2 text-muted me-1"></i> <%= v.cor !== '-' ? v.cor : 'Padrão' %> 
+                                                <span class="text-muted fw-normal"><%= v.tamanho !== '-' ? '| Tam: ' + v.tamanho : '' %></span>
+                                            </span>
+                                            <span class="badge bg-success shadow-sm" style="font-size: 0.85rem;"><%= v.quantidade %></span>
+                                        </div>
+                                        
+                                        <% if (v.ultima_entrega) { %>
+                                            <div class="d-flex justify-content-between align-items-center text-muted rounded mt-1" style="font-size: 0.70rem; background: #fff; padding: 4px 6px; border: 1px solid #e9ecef;">
+                                                <span title="Recebido por <%= v.ultima_entrega.responsavel %>">
+                                                    <i class="bi bi-truck text-secondary me-1"></i><%= new Date(v.ultima_entrega.data_acao).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) %>
+                                                </span>
+                                                <span class="text-success fw-bold" title="Quantidade recebida nesta data">+<%= v.ultima_entrega.quantidade %></span>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <div class="text-center py-3 text-muted small flex-grow-1 d-flex align-items-center justify-content-center">
+                                <i>Nenhum item disponível.</i>
+                            </div>
+                        <% } %>
+
+                        <button class="btn btn-sm btn-light border w-100 text-primary fw-bold mt-auto">Gerenciar Histórico <i class="bi bi-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% }) %>
+
+    <% if(insumos.length === 0) { %>
+        <div class="col-12" id="msgSemProdutos">
+            <div class="alert alert-secondary text-center py-5 border-dashed bg-light shadow-sm">
+                <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
+                <h5 class="text-secondary fw-bold">Nenhum produto registado nesta pasta ainda.</h5>
+                <% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+                    <p class="text-muted mb-0">Clique em "Novo Produto" no topo da página para adicionar itens do catálogo global à sua oficina.</p>
+                <% } else { %>
+                    <p class="text-muted mb-0">Somente administradores podem adicionar produtos.</p>
+                <% } %>
+            </div>
+        </div>
+    <% } %>
+    
+    <div class="col-12 d-none" id="msgNenhumEncontrado">
+        <div class="alert alert-warning text-center py-4 border-dashed bg-light shadow-sm">
+            <i class="bi bi-search display-4 text-warning d-block mb-3 opacity-50"></i>
+            <h5 class="text-secondary fw-bold">Nenhum produto encontrado.</h5>
+            <p class="text-muted mb-0">Tente pesquisar por outro nome.</p>
+        </div>
+    </div>
+</div>
+
+<% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+<div class="modal fade" id="novoProdutoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content border-0 shadow" action="/insumos/<%= malharia_id %>/<%= categoria %>/novo" method="POST">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle"></i> Adicionar <%= categoria === 'tecido' ? 'Tecido' : 'Aviamento' %> à Oficina</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                
+                <% if(catalogo.length === 0) { %>
+                    <div class="alert alert-success text-center">
+                        <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                        Todos os <%= categoria === 'tecido' ? 'tecidos' : 'aviamentos' %> do Catálogo Global já foram adicionados a esta oficina!
+                    </div>
+                <% } else { %>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-bold small text-uppercase"><i class="bi bi-tag"></i> Pesquisar e Selecionar Produto</label>
+                        
+                        <div class="input-group mb-2 shadow-sm">
+                            <span class="input-group-text bg-white border-primary border-end-0"><i class="bi bi-search text-primary"></i></span>
+                            <input type="text" id="inputBuscaCatalogo" class="form-control border-primary border-start-0 ps-0" placeholder="Buscar no catálogo..." onkeyup="filtrarSelectCatalogo()">
+                        </div>
+
+                        <select class="form-select border-primary shadow-sm" name="nome" id="selectCatalogo" size="6" required>
+                            <% catalogo.forEach(item => { %>
+                                <option value="<%= item.nome %>" class="catalogo-option py-2 px-3 border-bottom"><%= item.nome %></option>
+                            <% }) %>
+                        </select>
+                        <div class="form-text mt-2"><i class="bi bi-info-circle"></i> As cores e tamanhos serão definidos automaticamente na próxima tela quando lançar a entrada. Se o produto não estiver na lista, adicione-o primeiro no <b>Catálogo Global</b>.</div>
+                    </div>
+                <% } %>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <% if(catalogo.length > 0) { %>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar e Continuar <i class="bi bi-arrow-right"></i></button>
+                <% } %>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function filtrarSelectCatalogo() {
+        const termo = document.getElementById('inputBuscaCatalogo').value.toLowerCase().trim();
+        const options = document.querySelectorAll('.catalogo-option');
+        
+        options.forEach(opt => {
+            const texto = opt.text.toLowerCase();
+            if (texto.includes(termo)) {
+                opt.style.display = '';
+                opt.disabled = false;
+            } else {
+                opt.style.display = 'none';
+                opt.disabled = true; 
+            }
+        });
+    }
+
+    function filtrarProdutos() {
+        const termo = document.getElementById('inputPesquisaProduto').value.toLowerCase().trim();
+        const produtos = document.querySelectorAll('.produto-item');
+        let itensVisiveis = 0;
+
+        produtos.forEach(produto => {
+            const nome = produto.getAttribute('data-nome');
+            
+            if (nome.includes(termo)) {
+                produto.style.display = '';
+                itensVisiveis++;
+            } else {
+                produto.style.display = 'none';
+            }
+        });
+
+        const msgNenhumEncontrado = document.getElementById('msgNenhumEncontrado');
+        if (msgNenhumEncontrado) {
+            if (itensVisiveis === 0 && produtos.length > 0) {
+                msgNenhumEncontrado.classList.remove('d-none');
+            } else {
+                msgNenhumEncontrado.classList.add('d-none');
+            }
+        }
+    }
+</script>
+<% } %>

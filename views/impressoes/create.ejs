@@ -1,0 +1,156 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-printer"></i> Novo Registro de Impressão</h1>
+    <div class="btn-toolbar mb-2 mb-md-0"><a href="/impressoes?data=<%= dataSelecionada %>" class="btn btn-sm btn-secondary">Voltar</a></div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-primary border-top border-3">
+            <div class="card-body">
+                <form action="/impressoes" method="POST" id="formRegistroImpressao" onsubmit="return validarFormulario(event)">
+                    
+                    <h5 class="card-title text-primary border-bottom pb-2">Dados Gerais</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Data do Registro</label>
+                            <input type="date" class="form-control bg-light" name="data_registro" value="<%= dataSelecionada %>" readonly required>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label fw-bold">Máquina de Impressão</label>
+                            
+                            <% if (maquinaSelecionada) { %>
+                                <select class="form-select bg-light" disabled>
+                                    <% maquinas.forEach(function(maq) { %>
+                                        <option value="<%= maq.id %>" <%= String(maq.id) === String(maquinaSelecionada) ? 'selected' : '' %>>
+                                            <%= maq.nome %> (<%= maq.malharia ? maq.malharia.nome : 'Sem local' %>)
+                                        </option>
+                                    <% }); %>
+                                </select>
+                                <input type="hidden" name="maquina_id" value="<%= maquinaSelecionada %>">
+                            <% } else { %>
+                                <select class="form-select" name="maquina_id" required>
+                                    <option value="" disabled selected>Selecione a máquina...</option>
+                                    <% maquinas.forEach(function(maq) { %>
+                                        <option value="<%= maq.id %>"><%= maq.nome %> (<%= maq.malharia ? maq.malharia.nome : 'Sem local' %>)</option>
+                                    <% }); %>
+                                </select>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <h5 class="card-title text-primary border-bottom pb-2 mt-4 d-flex justify-content-between align-items-center">
+                        Lote de Impressões
+                        <button type="button" class="btn btn-sm btn-success shadow-sm" onclick="adicionarLinha()">
+                            <i class="bi bi-plus-lg"></i> Adicionar Linha
+                        </button>
+                    </h5>
+
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered table-sm align-middle text-center" id="tabelaImpressoes">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="min-width: 120px;">Categoria</th>
+                                    <th style="min-width: 150px;">Demanda (Escola, etc.)</th>
+                                    <th style="min-width: 130px;">Produto</th>
+                                    <th style="min-width: 110px;">Tamanho</th>
+                                    <th style="min-width: 100px;">Arquivo</th>
+                                    <th style="min-width: 120px;">Modalidade</th>
+                                    <th style="min-width: 100px;">Qtd (Imp.)</th>
+                                    <th style="width: 50px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyImpressoes">
+                                <!-- As linhas serão inseridas aqui via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Observações Adicionais</label>
+                        <textarea class="form-control" name="observacao" rows="2" placeholder="Algum erro de impressão, falta de tinta, etc."></textarea>
+                    </div>
+
+                    <div class="text-end mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg px-5 shadow fw-bold">Salvar Impressões</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Aviso -->
+<div class="modal fade" id="modalAviso" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-warning">
+            <div class="modal-header bg-warning text-dark py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle"></i> Atenção</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3" id="textoAviso"></div>
+            <div class="modal-footer py-1 justify-content-center">
+                <button type="button" class="btn btn-sm btn-dark px-3" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script>
+    const opcoesCategoria = ['escolar', 'diversas', 'esportiva', 'seap'];
+    const opcoesProduto = ['camisa', 'camiseta', 'colete'];
+    const opcoesTamanho = ['2 anos', '4 anos', '6 anos', '8 anos', '10 anos', 'pp', 'p', 'm', 'g', 'gg', 'xgg'];
+    const opcoesArquivo = ['.prt', '.pm'];
+    const opcoesModalidade = ['1PASS', '2PASS_LM', '3PASS_LM'];
+
+    function gerarOptions(array) {
+        return array.map(item => `<option value="${item}">${item.toUpperCase()}</option>`).join('');
+    }
+
+    function exibirAviso(msg) {
+        document.getElementById('textoAviso').innerText = msg;
+        new bootstrap.Modal(document.getElementById('modalAviso')).show();
+    }
+
+    function adicionarLinha() {
+        const tbody = document.getElementById('tbodyImpressoes');
+        const linhaVazia = document.getElementById('linhaVazia');
+        if (linhaVazia) linhaVazia.remove();
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><select class="form-select form-select-sm" name="categorias[]" required><option value="" disabled selected>Selecione...</option>${gerarOptions(opcoesCategoria)}</select></td>
+            <td><input type="text" class="form-control form-control-sm text-center" name="demandas[]" placeholder="Ex: Seduc, Escola X" required></td>
+            <td><select class="form-select form-select-sm" name="produtos[]" required><option value="" disabled selected>Selecione...</option>${gerarOptions(opcoesProduto)}</select></td>
+            <td><select class="form-select form-select-sm" name="tamanhos[]" required><option value="" disabled selected>Selecione...</option>${gerarOptions(opcoesTamanho)}</select></td>
+            <td><select class="form-select form-select-sm" name="tipos_arquivo[]" required>${gerarOptions(opcoesArquivo)}</select></td>
+            <td><select class="form-select form-select-sm" name="modalidades[]" required>${gerarOptions(opcoesModalidade)}</select></td>
+            <td><input type="number" class="form-control form-control-sm text-center fw-bold text-success" name="numeros_impressoes[]" min="1" value="1" required></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removerLinha(this)"><i class="bi bi-trash"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function removerLinha(btn) {
+        const tr = btn.closest('tr');
+        tr.remove();
+        const tbody = document.getElementById('tbodyImpressoes');
+        if (tbody.children.length === 0) {
+            tbody.innerHTML = '<tr id="linhaVazia"><td colspan="8" class="text-center text-muted py-3">Nenhuma impressão adicionada. Clique em "Adicionar Linha".</td></tr>';
+        }
+    }
+
+    function validarFormulario(event) {
+        const tbody = document.getElementById('tbodyImpressoes');
+        if (tbody.children.length === 0 || document.getElementById('linhaVazia')) {
+            event.preventDefault();
+            exibirAviso("Você precisa adicionar pelo menos uma linha de impressão antes de salvar.");
+            return false;
+        }
+        return true;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        adicionarLinha();
+    });
+</script>

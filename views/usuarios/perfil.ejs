@@ -1,0 +1,180 @@
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-primary">Meu Perfil</h2>
+                <p class="text-muted">Gerencie as suas informações e credenciais de acesso</p>
+            </div>
+
+            <% if (error) { %> 
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <strong>Erro!</strong> <%= error %>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div> 
+            <% } %>
+            
+            <% if (success) { %> 
+                <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" id="successMessage" role="alert">
+                    <strong>Tudo certo!</strong> <%= success %>
+                </div> 
+                <script>
+                    setTimeout(() => {
+                        const successAlert = document.getElementById('successMessage');
+                        if(successAlert) {
+                            successAlert.classList.remove('show');
+                            setTimeout(() => successAlert.remove(), 150);
+                        }
+                    }, 3000);
+                </script>
+            <% } %>
+
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    
+                    <form action="/usuarios/perfil" method="POST" id="formPerfil">
+                        
+                        <div class="position-relative mx-auto mb-4" style="width: 110px; height: 110px;">
+                            
+                            <div id="avatarPreview" class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm overflow-hidden border border-3 border-white shadow" 
+                                 style="width: 100%; height: 100%; font-size: 3rem; font-weight: bold; background-size: cover; background-position: center; <%= perfil.avatar ? `background-image: url('${perfil.avatar}'); color: transparent !important;` : '' %>">
+                                <%= !perfil.avatar ? perfil.nome.charAt(0).toUpperCase() : '' %>
+                            </div>
+                            
+                            <label for="uploadFoto" class="position-absolute bottom-0 end-0 bg-white text-primary rounded-circle shadow border d-flex align-items-center justify-content-center m-0" style="width: 36px; height: 36px; cursor: pointer; transition: transform 0.2s; right: -5px;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Alterar Foto">
+                                <i class="bi bi-camera-fill"></i>
+                            </label>
+
+                            <button type="button" id="btnRemoverFoto" class="position-absolute bottom-0 start-0 bg-white text-danger rounded-circle shadow border d-flex align-items-center justify-content-center m-0" style="width: 36px; height: 36px; cursor: pointer; transition: transform 0.2s; left: -5px; border: none; <%= perfil.avatar ? '' : 'display: none !important;' %>" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Remover Foto">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                            
+                            <input type="file" id="uploadFoto" class="d-none" accept="image/png, image/jpeg, image/webp">
+                            <input type="hidden" name="avatar" id="avatarInput">
+                        </div>
+
+                        <h6 class="text-muted mb-3 text-center">Informações Pessoais</h6>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" name="nome" id="nome" class="form-control" value="<%= perfil.nome %>" placeholder="Nome Completo" required>
+                            <label for="nome">Nome Completo</label>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <input type="text" name="username" id="username" class="form-control" value="<%= perfil.username %>" placeholder="Usuário (Login)" pattern="[a-zA-Z0-9_]+" oninput="this.value = this.value.replace(/[^a-zA-Z0-9_]/g, '')" required>
+                            <label for="username">Usuário (Login)</label>
+                        </div>
+
+                        <div class="row g-2 mb-4">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="email" name="email" id="email" class="form-control" value="<%= perfil.email || '' %>" placeholder="E-mail">
+                                    <label for="email">E-mail (Opcional)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="telefone" id="telefone" class="form-control" value="<%= perfil.telefone || '' %>" placeholder="Telefone">
+                                    <label for="telefone">Telefone (Opcional)</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="text-muted mb-4">
+                        <h6 class="text-muted mb-3">Segurança (Alterar Senha)</h6>
+
+                        <div class="form-floating mb-2">
+                            <input type="password" name="senha_atual" id="senha_atual" class="form-control" placeholder="Senha Atual">
+                            <label for="senha_atual">Senha Atual</label>
+                        </div>
+
+                        <div class="form-floating mb-2">
+                            <input type="password" name="nova_senha" id="nova_senha" class="form-control" placeholder="Nova Senha">
+                            <label for="nova_senha">Nova Senha</label>
+                        </div>
+
+                        <div class="form-floating mb-2">
+                            <input type="password" name="confirmar_senha" id="confirmar_senha" class="form-control" placeholder="Repita a Nova Senha">
+                            <label for="confirmar_senha">Repita a Nova Senha</label>
+                        </div>
+
+                        <small class="text-muted d-block mb-4">
+                            ✎ Preencha os campos de senha <b>apenas</b> se desejar alterá-la.
+                        </small>
+                 
+                        <div class="d-grid mt-2">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-semibold shadow-sm">
+                                Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+    // Quando o usuário escolhe uma nova foto
+    document.getElementById('uploadFoto').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!file.type.match('image.*')) {
+            alert('Por favor, selecione uma imagem válida.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const MAX_SIZE = 256;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8); 
+                
+                const preview = document.getElementById('avatarPreview');
+                preview.style.backgroundImage = `url(${dataUrl})`;
+                preview.style.color = 'transparent'; 
+                preview.innerHTML = '';
+                
+                document.getElementById('avatarInput').value = dataUrl;
+                document.getElementById('btnRemoverFoto').style.setProperty('display', 'flex', 'important');
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Quando o usuário clica na Lixeira para remover a foto
+    document.getElementById('btnRemoverFoto').addEventListener('click', function() {
+        const preview = document.getElementById('avatarPreview');
+        preview.style.backgroundImage = 'none';
+        preview.style.color = 'white'; 
+        preview.innerHTML = '<%= perfil.nome.charAt(0).toUpperCase() %>'; 
+        
+        document.getElementById('avatarInput').value = 'remove'; 
+        this.style.setProperty('display', 'none', 'important'); 
+    });
+</script>

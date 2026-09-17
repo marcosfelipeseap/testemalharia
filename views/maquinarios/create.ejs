@@ -1,0 +1,40 @@
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Nova Máquina</h1>
+    <a href="/maquinarios" class="btn btn-secondary btn-sm">Voltar</a>
+</div>
+
+<% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-danger"><%= error %></div>
+<% } %>
+
+<div class="card shadow-sm col-md-8 mx-auto">
+    <div class="card-body">
+        <form action="/maquinarios" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Nome da Máquina</label>
+                <input type="text" class="form-control" name="nome" 
+                       value="<%= typeof formData !== 'undefined' ? formData.nome : '' %>" required placeholder="Ex: Singer Heavy Duty">
+            </div>
+
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label fw-bold mb-0">Tipo</label>
+                    <a href="/maquinarios/tipos" class="small text-decoration-none"><i class="bi bi-gear"></i> Gerenciar Tipos</a>
+                </div>
+                <select class="form-select" name="tipo_id" required>
+                    <option value="">Selecione...</option>
+                    <% tipos.forEach(t => { %>
+                        <option value="<%= t.id %>" <%= typeof formData !== 'undefined' && formData.tipo_id == t.id ? 'selected' : '' %>>
+                            <%= t.nome %>
+                        </option>
+                    <% }) %>
+                </select>
+                <div class="form-text">Se o tipo não existir, crie-o clicando em "Gerenciar Tipos".</div>
+            </div>
+
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary px-4">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>

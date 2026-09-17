@@ -1,0 +1,91 @@
+<% if (typeof top5Ranking !== 'undefined' && top5Ranking.length > 0) { %>
+
+    <!-- ========================================== -->
+    <!-- VERSÃO COMPUTADOR (Em Linha / Horizontal)  -->
+    <!-- ========================================== -->
+    <div class="d-none d-md-flex align-items-center bg-black bg-opacity-25 rounded-pill px-3 py-1 shadow-sm border border-secondary mx-auto" 
+         style="cursor: pointer; transition: 0.2s; white-space: nowrap; width: max-content;" 
+         onmouseover="this.style.background='rgba(0,0,0,0.4)'" onmouseout="this.style.background='rgba(0,0,0,0.25)'"
+         onclick="window.location.href='/ranking'" title="Clique para ver o Ranking Completo">
+        
+        <span class="text-warning fw-bold me-3 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">
+            <i class="bi bi-trophy-fill me-1"></i> Top 5
+        </span>
+        
+        <% top5Ranking.forEach((rank, index) => { %>
+            <%
+                let corIco = 'text-light'; let icone = 'bi-star';
+                if (index === 0) { corIco = 'text-warning'; icone = 'bi-trophy-fill'; } 
+                else if (index === 1) { corIco = 'text-secondary'; icone = 'bi-award-fill'; } 
+                else if (index === 2) { corIco = 'text-danger'; icone = 'bi-award-fill'; } 
+            %>
+            <div class="d-flex align-items-center me-3 border-end border-secondary pe-3">
+                <span class="fw-bold me-1" style="color: rgba(255,255,255,0.6); font-size: 0.85rem;"><%= index + 1 %>º</span>
+                <i class="bi <%= icone %> <%= corIco %> me-1 fs-5"></i>
+                <div class="d-flex flex-column lh-1" style="font-size: 0.75rem;">
+                    <span class="text-white fw-bold text-truncate" style="max-width: 100px;"><%= rank.nome %></span>
+                    <span class="<%= rank.performance >= 100 ? 'text-success' : 'text-info' %> fw-bolder mt-1"><%= rank.performance %>%</span>
+                </div>
+            </div>
+        <% }) %>
+        <i class="bi bi-chevron-right text-white-50 ms-1"></i>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VERSÃO CELULAR (Em Bloco c/ 2 Colunas)     -->
+    <!-- ========================================== -->
+    <div class="d-block d-md-none w-100 px-2 pb-2 pt-1 border-top border-secondary border-opacity-25">
+        <div class="bg-black bg-opacity-25 rounded p-2 border border-secondary shadow-sm">
+            
+            <div class="text-warning fw-bold text-center mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">
+                <i class="bi bi-trophy-fill"></i> TOP 5 DO MÊS
+            </div>
+            
+            <div class="row g-2">
+                <!-- Coluna Esquerda: 1º ao 3º -->
+                <div class="col-6 border-end border-secondary border-opacity-50">
+                    <% top5Ranking.slice(0, 3).forEach((rank, index) => { %>
+                        <%
+                            let corIco = 'text-danger'; let icone = 'bi-award-fill';
+                            if (index === 0) { corIco = 'text-warning'; icone = 'bi-trophy-fill'; } 
+                            else if (index === 1) { corIco = 'text-secondary'; } 
+                        %>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="fw-bold me-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem;"><%= index + 1 %>º</span>
+                            <i class="bi <%= icone %> <%= corIco %> me-1" style="font-size: 0.95rem;"></i>
+                            <div class="d-flex flex-column lh-1 overflow-hidden" style="font-size: 0.7rem;">
+                                <span class="text-white fw-bold text-truncate"><%= rank.nome %></span>
+                                <span class="<%= rank.performance >= 100 ? 'text-success' : 'text-info' %> fw-bolder mt-1" style="font-size: 0.65rem;"><%= rank.performance %>%</span>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+                
+                <!-- Coluna Direita: 4º, 5º e Botão Ver Completo -->
+                <div class="col-6 d-flex flex-column justify-content-between ps-2">
+                    <div>
+                        <% top5Ranking.slice(3, 5).forEach((rank, index) => { %>
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="fw-bold me-1" style="color: rgba(255,255,255,0.7); font-size: 0.75rem;"><%= index + 4 %>º</span>
+                                <i class="bi bi-star text-light me-1" style="font-size: 0.95rem;"></i>
+                                <div class="d-flex flex-column lh-1 overflow-hidden" style="font-size: 0.7rem;">
+                                    <span class="text-white fw-bold text-truncate"><%= rank.nome %></span>
+                                    <span class="<%= rank.performance >= 100 ? 'text-success' : 'text-info' %> fw-bolder mt-1" style="font-size: 0.65rem;"><%= rank.performance %>%</span>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                    
+                    <!-- Botão Alinhado Embaixo -->
+                    <div class="mt-auto pt-1 text-center">
+                        <a href="/ranking" class="btn btn-sm btn-outline-info w-100 fw-bold shadow-sm" style="font-size: 0.65rem; padding: 4px 0;">
+                            Ver Ranking Completo <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<% } %>

@@ -1,0 +1,529 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><%= user.nivel >= 3 ? 'Gerenciar Malharias' : 'Minhas Malharias' %></h1>
+    
+    <% if (user.nivel >= 3) { %>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="/malharias/create" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-lg"></i> Nova Malharia
+            </a>
+        </div>
+    <% } %>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-9 mb-3 mb-md-0">
+        <div class="input-group input-group-lg shadow-sm">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Buscar malharia, unidade ou responsável..." autocomplete="off">
+        </div>
+    </div>
+    <!-- Botões de Alternância de Visão -->
+    <div class="col-md-3 d-flex justify-content-md-end align-items-center">
+        <div class="btn-group shadow-sm" role="group">
+            <button type="button" class="btn btn-primary" id="btnViewCards" title="Visão em Cards"><i class="bi bi-grid-fill"></i></button>
+            <button type="button" class="btn btn-outline-primary" id="btnViewTable" title="Visão em Tabela"><i class="bi bi-list-ul"></i></button>
+        </div>
+    </div>
+</div>
+
+<% 
+    const grupos = {};
+    if (typeof malharias !== 'undefined' && malharias.length > 0) {
+        malharias.forEach(m => {
+            const uId = m.unidade ? m.unidade.id : '0';
+            if (!grupos[uId]) {
+                grupos[uId] = { dadosUnidade: m.unidade, lista: [], totalMaquinas: 0, totalInternos: 0, totalRemunerados: 0 };
+            }
+            grupos[uId].lista.push(m);
+            grupos[uId].totalMaquinas += (m.itens ? m.itens.length : 0);
+            grupos[uId].totalInternos += (m.num_internos || 0);
+            grupos[uId].totalRemunerados += (m.num_internos_remunerados || 0);
+        });
+    }
+%>
+
+<!-- VISÃO EM CARDS (Principal) -->
+<div id="viewCards">
+    <% if (Object.keys(grupos).length === 0) { %>
+        <div class="alert alert-light text-center border border-dashed py-5">
+            <i class="bi bi-shop fs-1 text-muted"></i>
+            <p class="mt-3">Nenhuma malharia encontrada.</p>
+        </div>
+    <% } else { %>
+        <% Object.keys(grupos).forEach(key => { 
+            const grupo = grupos[key];
+            const u = grupo.dadosUnidade;
+        %>
+            <div class="secao-unidade mb-5">
+                <div class="card border-0 shadow-sm mb-3 overflow-hidden">
+                    <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                                <% if(u) { %>
+                                    <h3 class="fw-bold text-primary mb-1">
+                                        <i class="bi bi-building"></i> <%= u.nome %>
+                                    </h3>
+                                    <p class="text-muted mb-0"><i class="bi bi-geo-alt"></i> <%= u.cidade || 'Cidade não informada' %></p>
+                                <% } else { %>
+                                    <h3 class="fw-bold text-secondary mb-1">
+                                        <i class="bi bi-question-circle"></i> Sem Unidade Vinculada
+                                    </h3>
+                                <% } %>
+                            </div>
+                            
+                            <div class="d-flex gap-2 text-end mt-2 mt-md-0 flex-wrap">
+                                <div class="bg-light px-3 py-2 rounded text-center">
+                                    <span class="d-block fw-bold fs-5"><%= grupo.lista.length %></span>
+                                    <small class="text-muted text-uppercase" style="font-size: 0.65rem;">Malharias</small>
+                                </div>
+                                <div class="bg-light px-3 py-2 rounded text-center">
+                                    <span class="d-block fw-bold fs-5"><%= grupo.totalMaquinas %></span>
+                                    <small class="text-muted text-uppercase" style="font-size: 0.65rem;">Máquinas</small>
+                                </div>
+                                <div class="bg-light px-3 py-2 rounded text-center">
+                                    <span class="d-block fw-bold fs-5 text-success"><%= grupo.totalInternos %></span>
+                                    <small class="text-muted text-uppercase" style="font-size: 0.65rem;">Geral</small>
+                                </div>
+                                <div class="bg-light px-3 py-2 rounded text-center border border-info border-opacity-25">
+                                    <span class="d-block fw-bold fs-5 text-info"><%= grupo.totalRemunerados %></span>
+                                    <small class="text-muted text-uppercase" style="font-size: 0.65rem;">Remunerados</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <% if(u) { %>
+                            <div class="row mt-4 pb-3 border-bottom g-3 text-secondary small">
+                                <div class="col-md-4">
+                                    <strong><i class="bi bi-pin-map"></i> Endereço:</strong><br>
+                                    <%= u.endereco || '-' %>, <%= u.cep || '' %>
+                                    <% if(u.lat && u.lon) { %>
+                                        <a href="#" onclick="abrirMapaUnidade('<%= u.lat %>', '<%= u.lon %>', '<%= u.nome %>')" class="ms-1 text-decoration-none">
+                                            (Ver no Mapa)
+                                        </a>
+                                    <% } %>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong><i class="bi bi-person-check"></i> Resp. Unidade:</strong><br>
+                                    <%= u.responsavel || 'Não informado' %>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong><i class="bi bi-telephone"></i> Telefone:</strong><br>
+                                    <%= u.telefone || '-' %>
+                                </div>
+                                <div class="col-md-2">
+                                    <strong><i class="bi bi-boxes"></i> Capacidade:</strong><br>
+                                    <%= u.capacidade || '-' %>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="card-body bg-light p-4">
+                        <h6 class="text-uppercase text-muted fw-bold mb-3 small ls-1">
+                            <i class="bi bi-grid-3x3-gap"></i> Malharias desta Unidade
+                        </h6>
+
+                        <div class="row g-3">
+                            <% grupo.lista.forEach(m => { %>
+                                <div class="col-md-6 col-lg-4 col-xl-3 card-malharia-wrapper">
+                                    <div class="card h-100 border-0 shadow-sm hover-card bg-white">
+                                        <div class="card-body p-3 d-flex flex-column">
+                                            
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="text-truncate w-100 pe-2">
+                                                    <h6 class="card-title fw-bold text-dark mb-0 text-truncate" title="<%= m.nome %>">
+                                                        <%= m.nome %>
+                                                    </h6>
+                                                    <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                                        Resp: <%= m.responsavel || 'N/A' %>
+                                                    </small>
+
+                                                    <div class="mt-2 d-flex flex-wrap gap-1 align-items-center">
+                                                        <small class="text-muted me-1" style="font-size: 0.70rem;">Monitores:</small>
+                                                        <% if (m.monitores && m.monitores.length > 0) { %>
+                                                            <% m.monitores.forEach(mon => { %>
+                                                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm border border-white" 
+                                                                     style="width: 28px; height: 28px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: transform 0.2s; background-size: cover; background-position: center; <%= mon.avatar ? `background-image: url('${mon.avatar}'); color: transparent !important;` : '' %>"
+                                                                     title="Ver contato de <%= mon.nome %>"
+                                                                     onmouseover="this.style.transform='scale(1.15)'"
+                                                                     onmouseout="this.style.transform='scale(1)'"
+                                                                     onclick="verMonitorInfo('<%= mon.nome %>', '<%= mon.username %>', '<%= mon.email || '' %>', '<%= mon.telefone || '' %>', '<%= mon.avatar || '' %>')">
+                                                                    <%= !mon.avatar ? mon.nome.charAt(0).toUpperCase() : '' %>
+                                                                </div>
+                                                            <% }); %>
+                                                        <% } else { %>
+                                                            <span class="badge bg-light text-muted border fw-normal" style="font-size: 0.65rem;">Sem vinculação</span>
+                                                        <% } %>
+                                                    </div>
+
+                                                </div>
+                                                
+                                                <% if (user.nivel >= 3) { %>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
+                                                        <i class="bi bi-three-dots-vertical"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                                                        <li><a class="dropdown-item" href="/malharias/<%= m.id %>/edit"><i class="bi bi-pencil me-2"></i> Editar</a></li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><a class="dropdown-item text-danger" href="#" onclick="confirmarExclusao('<%= m.id %>', '<%= m.nome %>')"><i class="bi bi-trash me-2"></i> Excluir</a></li>
+                                                    </ul>
+                                                </div>
+                                                <% } %>
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mt-2 mb-3 bg-light rounded p-2">
+                                                <div class="text-center w-100 border-end">
+                                                    <span class="d-block fw-bold text-primary"><%= m.itens ? m.itens.length : 0 %></span>
+                                                    <small style="font-size: 0.65rem;">Máquinas</small>
+                                                </div>
+                                                <div class="text-center w-100 border-end">
+                                                    <span class="d-block fw-bold text-success"><%= m.num_internos || 0 %></span>
+                                                    <small style="font-size: 0.65rem;">Geral</small>
+                                                </div>
+                                                <div class="text-center w-100">
+                                                    <span class="d-block fw-bold text-info"><%= m.num_internos_remunerados || 0 %></span>
+                                                    <small style="font-size: 0.65rem;">Remun.</small>
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-auto d-flex gap-2">
+                                                <a href="/registros/malharia/<%= m.id %>/historico" class="btn btn-sm btn-outline-info w-50" title="Histórico de Produção">
+                                                    <i class="bi bi-clock-history"></i> Histórico
+                                                </a>
+                                                <a href="/malharias/<%= m.id %>/edit" class="btn btn-sm btn-outline-primary w-50" title="<%= user.nivel >= 3 ? 'Gerenciar Cadastro' : 'Ver / Editar Máquinas' %>">
+                                                    <i class="bi bi-gear"></i> <%= user.nivel >= 3 ? 'Gerenciar' : 'Máquinas' %>
+                                                </a>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<!-- VISÃO EM TABELA (Secundária - Oculta por padrão) -->
+<div id="viewTable" style="display: none;">
+    <div class="table-responsive bg-white shadow-sm rounded p-3 mb-5">
+        <table class="table table-hover table-striped align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Unidade</th>
+                    <th scope="col">Malharia</th>
+                    <th scope="col">Responsável</th>
+                    <th scope="col">Monitores</th>
+                    <th scope="col" class="text-center">Máquinas</th>
+                    <th scope="col" class="text-center">Internos (Geral)</th>
+                    <th scope="col" class="text-center">Internos (Remunerados)</th>
+                    <th scope="col" class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (typeof malharias !== 'undefined' && malharias.length > 0) { %>
+                    <% malharias.forEach(m => { 
+                        const u = m.unidade;
+                    %>
+                    <tr class="linha-tabela-malharia">
+                        <td>
+                            <span class="fw-semibold text-secondary"><%= u ? u.nome : 'Sem Unidade' %></span>
+                            <% if(u && u.lat && u.lon) { %>
+                                <a href="#" onclick="abrirMapaUnidade('<%= u.lat %>', '<%= u.lon %>', '<%= u.nome %>')" class="text-primary ms-1" title="Ver no Mapa">
+                                    <i class="bi bi-geo-alt"></i>
+                                </a>
+                            <% } %>
+                        </td>
+                        <td><span class="fw-bold text-dark"><%= m.nome %></span></td>
+                        <td><%= m.responsavel || 'N/A' %></td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                <% if (m.monitores && m.monitores.length > 0) { %>
+                                    <% m.monitores.forEach(mon => { %>
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm border border-white" 
+                                             style="width: 24px; height: 24px; font-size: 0.65rem; font-weight: bold; cursor: pointer; transition: transform 0.2s; background-size: cover; background-position: center; <%= mon.avatar ? `background-image: url('${mon.avatar}'); color: transparent !important;` : '' %>"
+                                             title="Ver contato de <%= mon.nome %>"
+                                             onclick="verMonitorInfo('<%= mon.nome %>', '<%= mon.username %>', '<%= mon.email || '' %>', '<%= mon.telefone || '' %>', '<%= mon.avatar || '' %>')">
+                                            <%= !mon.avatar ? mon.nome.charAt(0).toUpperCase() : '' %>
+                                        </div>
+                                    <% }); %>
+                                <% } else { %>
+                                    <span class="badge bg-light text-muted border fw-normal" style="font-size: 0.7rem;">Nenhum</span>
+                                <% } %>
+                            </div>
+                        </td>
+                        <td class="text-center"><span class="badge bg-secondary rounded-pill"><%= m.itens ? m.itens.length : 0 %></span></td>
+                        <td class="text-center fw-bold text-success"><%= m.num_internos || 0 %></td>
+                        <td class="text-center fw-bold text-info"><%= m.num_internos_remunerados || 0 %></td>
+                        <td class="text-end text-nowrap">
+                            <a href="/registros/malharia/<%= m.id %>/historico" class="btn btn-sm btn-outline-info" title="Ver Histórico Diário">
+                                <i class="bi bi-clock-history"></i>
+                            </a>
+                            <a href="/malharias/<%= m.id %>/edit" class="btn btn-sm btn-outline-primary ms-1" title="<%= user.nivel >= 3 ? 'Gerenciar' : 'Ver Máquinas' %>">
+                                <i class="bi bi-gear"></i>
+                            </a>
+                            <% if (user.nivel >= 3) { %>
+                                <button class="btn btn-sm btn-outline-danger ms-1" onclick="confirmarExclusao('<%= m.id %>', '<%= m.nome %>')" title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            <% } %>
+                        </td>
+                    </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">Nenhuma malharia encontrada.</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalInfoMonitor" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white py-3 border-0">
+                <h6 class="modal-title fw-bold">Contato do Monitor</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                
+                <div class="bg-light text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center border shadow-sm" 
+                     id="infoAvatarMonitor" 
+                     style="width: 75px; height: 75px; font-size: 2rem; font-weight: bold; background-size: cover; background-position: center; transition: transform 0.2s;">
+                    A
+                </div>
+                
+                <h5 class="fw-bold text-dark mb-0 text-truncate" id="infoNomeMonitor">Nome</h5>
+                <p class="text-muted small mb-3">@<span id="infoUserMonitor"></span></p>
+                
+                <div class="text-start bg-light border rounded-3 p-3 small text-muted">
+                    <div class="mb-2 text-truncate" id="infoEmailBox">
+                        <i class="bi bi-envelope-fill me-2 text-secondary"></i><span id="infoEmailMonitor"></span>
+                    </div>
+                    <div class="text-truncate" id="infoTelBox">
+                        <i class="bi bi-telephone-fill me-2 text-secondary"></i><span id="infoTelMonitor"></span>
+                    </div>
+                    <div id="infoNenhumContato" class="text-center text-danger" style="display: none;">
+                        <i class="bi bi-x-circle me-1"></i> Sem contatos cadastrados
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAmpliarFoto" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-header border-0 p-2 justify-content-end position-absolute top-0 end-0 z-3">
+                <button type="button" class="btn-close btn-close-white bg-dark p-2 opacity-75 rounded-circle shadow" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0 position-relative">
+                <img id="imgFotoAmpliadaMalharia" src="" alt="Foto do Monitor" class="img-fluid rounded-4 shadow-lg border border-3 border-white" style="max-height: 80vh; max-width: 100%; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalMapaUnidade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloMapa">Localização</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="mapaView" style="height: 400px; width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (user.nivel >= 3) { %>
+<div class="modal fade" id="modalExclusao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Tem certeza que deseja excluir <strong><span id="nomeExclusao"></span></strong>?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExclusao" action="" method="POST">
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<style>
+    .ls-1 { letter-spacing: 1px; }
+    .hover-card { transition: transform 0.2s, box-shadow 0.2s; border: 1px solid #f0f0f0; }
+    .hover-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.08)!important; border-color: transparent; }
+</style>
+
+<script>
+    // Alternância de Visão (Cards vs Tabela)
+    const btnViewCards = document.getElementById('btnViewCards');
+    const btnViewTable = document.getElementById('btnViewTable');
+    const viewCards = document.getElementById('viewCards');
+    const viewTable = document.getElementById('viewTable');
+
+    btnViewCards.addEventListener('click', () => {
+        btnViewCards.classList.replace('btn-outline-primary', 'btn-primary');
+        btnViewTable.classList.replace('btn-primary', 'btn-outline-primary');
+        viewCards.style.display = 'block';
+        viewTable.style.display = 'none';
+    });
+
+    btnViewTable.addEventListener('click', () => {
+        btnViewTable.classList.replace('btn-outline-primary', 'btn-primary');
+        btnViewCards.classList.replace('btn-primary', 'btn-outline-primary');
+        viewTable.style.display = 'block';
+        viewCards.style.display = 'none';
+    });
+
+    // Função para Ampliar a Foto
+    function ampliarFoto(base64Image) {
+        document.getElementById('imgFotoAmpliadaMalharia').src = base64Image;
+        new bootstrap.Modal(document.getElementById('modalAmpliarFoto')).show();
+    }
+
+    // Função para exibir os contatos do Monitor
+    function verMonitorInfo(nome, username, email, telefone, avatarBase64) {
+        document.getElementById('infoNomeMonitor').innerText = nome;
+        document.getElementById('infoUserMonitor').innerText = username;
+        
+        const avatarDiv = document.getElementById('infoAvatarMonitor');
+        
+        if (avatarBase64 && avatarBase64.trim() !== '') {
+            avatarDiv.style.backgroundImage = `url('${avatarBase64}')`;
+            avatarDiv.style.color = 'transparent';
+            avatarDiv.innerHTML = '';
+            
+            avatarDiv.style.cursor = 'pointer';
+            avatarDiv.onclick = function() { ampliarFoto(avatarBase64); };
+            avatarDiv.title = 'Clique para ampliar a foto';
+            avatarDiv.onmouseover = function() { this.style.transform = 'scale(1.05)'; };
+            avatarDiv.onmouseout = function() { this.style.transform = 'scale(1)'; };
+        } else {
+            avatarDiv.style.backgroundImage = 'none';
+            avatarDiv.style.color = '#0d6efd'; 
+            avatarDiv.innerHTML = nome.charAt(0).toUpperCase();
+            
+            avatarDiv.style.cursor = 'default';
+            avatarDiv.onclick = null;
+            avatarDiv.title = '';
+            avatarDiv.onmouseover = null;
+            avatarDiv.onmouseout = null;
+            avatarDiv.style.transform = 'scale(1)';
+        }
+        
+        const emailBox = document.getElementById('infoEmailBox');
+        const telBox = document.getElementById('infoTelBox');
+        const semContato = document.getElementById('infoNenhumContato');
+        
+        let temAlgum = false;
+
+        if (email && email.trim() !== '') {
+            emailBox.style.display = 'block';
+            document.getElementById('infoEmailMonitor').innerText = email;
+            temAlgum = true;
+        } else {
+            emailBox.style.display = 'none';
+        }
+        
+        if (telefone && telefone.trim() !== '') {
+            telBox.style.display = 'block';
+            document.getElementById('infoTelMonitor').innerText = telefone;
+            temAlgum = true;
+        } else {
+            telBox.style.display = 'none';
+        }
+
+        if (temAlgum) {
+            semContato.style.display = 'none';
+        } else {
+            semContato.style.display = 'block';
+        }
+        
+        new bootstrap.Modal(document.getElementById('modalInfoMonitor')).show();
+    }
+
+    // Mapa e Outras funções
+    let map = null;
+    function abrirMapaUnidade(lat, lon, nome) {
+        const modalEl = document.getElementById('modalMapaUnidade');
+        document.getElementById('tituloMapa').innerText = 'Unidade: ' + nome;
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        modalEl.addEventListener('shown.bs.modal', () => {
+            if (!map) {
+                map = L.map('mapaView');
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+            }
+            setTimeout(() => map.invalidateSize(), 100);
+            map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+            const latNum = parseFloat(lat);
+            const lonNum = parseFloat(lon);
+            map.setView([latNum, lonNum], 16);
+            L.marker([latNum, lonNum]).addTo(map).bindPopup(nome).openPopup();
+        });
+    }
+
+    <% if (user.nivel >= 3) { %>
+    function confirmarExclusao(id, nome) {
+        document.getElementById('nomeExclusao').innerText = nome;
+        document.getElementById('formExclusao').action = `/malharias/${id}/delete`;
+        new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+    }
+    <% } %>
+
+    // Lógica de pesquisa integrada para Cards e Tabela
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const termo = this.value.toLowerCase();
+        
+        // Filtragem para Visão em Cards
+        document.querySelectorAll('.secao-unidade').forEach(secao => {
+            const cards = secao.querySelectorAll('.card-malharia-wrapper');
+            let visiveis = 0;
+            const textoUnidade = secao.innerText.toLowerCase(); 
+            const unidadeMatch = textoUnidade.includes(termo);
+
+            cards.forEach(card => {
+                const textoCard = card.innerText.toLowerCase();
+                if (textoCard.includes(termo) || unidadeMatch) {
+                    card.style.display = '';
+                    visiveis++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            secao.style.display = visiveis > 0 ? '' : 'none';
+        });
+
+        // Filtragem para Visão em Tabela
+        document.querySelectorAll('.linha-tabela-malharia').forEach(linha => {
+            const textoLinha = linha.innerText.toLowerCase();
+            if (textoLinha.includes(termo)) {
+                linha.style.display = '';
+            } else {
+                linha.style.display = 'none';
+            }
+        });
+    });
+</script>

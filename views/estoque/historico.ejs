@@ -1,0 +1,147 @@
+<%- contentFor('body') %>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <div class="d-flex align-items-center gap-3">
+        <a href="/estoque" class="btn btn-outline-secondary shadow-sm"><i class="bi bi-arrow-left"></i> Voltar</a>
+        <h1 class="h2 m-0"><i class="bi bi-clock-history text-primary"></i> Histórico de Transferências</h1>
+    </div>
+</div>
+
+<!-- PAINEL DE FILTROS -->
+<div class="card shadow-sm mb-4 border-0">
+    <div class="card-body bg-light">
+        <form action="/estoque/historico" method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-secondary">Pesquisa Geral</label>
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="busca" class="form-control border-start-0" placeholder="Proc ou Pessoa..." value="<%= filtros.busca || '' %>">
+                </div>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-secondary">Origem (Malharia)</label>
+                <select name="malharia_id" class="form-select shadow-sm">
+                    <!-- O Monitor vê "Minhas Malharias", os demais veem "Todas" -->
+                    <option value=""><%= locals.user && locals.user.cargo === 'monitor' ? 'Minhas Malharias' : 'Todas' %></option>
+                    
+                    <!-- A Sede aparece para todos que NÃO são monitores -->
+                    <% if (locals.user && locals.user.cargo !== 'monitor') { %>
+                        <option value="sede" <%= filtros.malharia_id === 'sede' ? 'selected' : '' %>>Malharia Sede</option>
+                    <% } %>
+                    
+                    <% malharias.forEach(m => { %>
+                        <option value="<%= m.id %>" <%= filtros.malharia_id == m.id ? 'selected' : '' %>><%= m.nome %></option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-secondary">Status</label>
+                <select name="status" class="form-select shadow-sm">
+                    <option value="">Todos</option>
+                    <option value="pendente" <%= filtros.status === 'pendente' ? 'selected' : '' %>>Pendentes</option>
+                    <option value="aprovada" <%= filtros.status === 'aprovada' ? 'selected' : '' %>>Aprovadas</option>
+                    <option value="rejeitada" <%= filtros.status === 'rejeitada' ? 'selected' : '' %>>Rejeitadas</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-secondary">Data Início</label>
+                <input type="date" name="data_inicio" class="form-control shadow-sm" value="<%= filtros.data_inicio || '' %>">
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-secondary">Data Fim</label>
+                <input type="date" name="data_fim" class="form-control shadow-sm" value="<%= filtros.data_fim || '' %>">
+            </div>
+
+            <div class="col-md-1 text-end d-grid">
+                <button type="submit" class="btn btn-primary shadow-sm"><i class="bi bi-funnel"></i></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABELA DE RESULTADOS -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-secondary">
+                    <tr>
+                        <th class="ps-4">Data</th>
+                        <th>Processo / Órgão</th>
+                        <th>Item Movimentado</th>
+                        <th>Origem ➔ Destino</th>
+                        <th>Envolvidos</th>
+                        <th>Termo de Entrega</th>
+                        <th class="text-center pe-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (transferencias.length === 0) { %>
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-search display-4 d-block mb-3 opacity-50"></i>
+                                Nenhum histórico encontrado com os filtros selecionados.
+                            </td>
+                        </tr>
+                    <% } else { %>
+                        <% transferencias.forEach(t => { %>
+                            <tr>
+                                <td class="ps-4 text-nowrap">
+                                    <span class="fw-bold text-dark d-block"><%= new Date(t.data_transferencia).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) %></span>
+                                    <small class="text-muted"><%= new Date(t.data_transferencia).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }) %></small>
+                                </td>
+                                
+                                <td>
+                                    <span class="fw-bold text-primary"><%= t.processo?.numero_processo || 'S/N' %></span>
+                                    <br><small class="text-muted"><i class="bi bi-building"></i> <%= t.processo?.orgao || 'Desconhecido' %></small>
+                                </td>
+                                
+                                <td>
+                                    <span class="fw-bold text-dark"><%= t.quantidade %> un <i class="bi bi-box"></i></span><br>
+                                    <small><%= t.item?.nome %> <%= t.tamanho_exato && t.tamanho_exato !== '-' ? `(Tam: ${t.tamanho_exato})` : '' %></small>
+                                </td>
+                                
+                                <td>
+                                    <% const nomeOrigem = t.malharia_origem_id ? (malharias.find(m => m.id == t.malharia_origem_id)?.nome || 'Oficina') : 'Sede'; %>
+                                    <small class="d-block text-muted">De: <b><%= nomeOrigem %></b></small>
+                                    <small class="d-block text-muted">Para: <b><%= t.tipo_destino === 'processo' ? 'Órgão Final' : 'Sede' %></b></small>
+                                </td>
+                                
+                                <td>
+                                    <small class="d-block text-muted" title="Solicitante"><i class="bi bi-person text-secondary"></i> <%= t.nome_solicitante %></small>
+                                    <% if (t.nome_avaliador) { %>
+                                        <small class="d-block text-muted" title="Autorizado/Avaliado por"><i class="bi bi-person-check-fill text-success"></i> <%= t.nome_avaliador %></small>
+                                    <% } %>
+                                </td>
+
+                                <td>
+                                    <% if (t.documento_termo) { %>
+                                        <a href="<%= t.documento_termo %>" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm fw-bold">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> Baixar/Abrir PDF
+                                        </a>
+                                    <% } else { %>
+                                        <span class="text-muted small">Nenhum anexo</span>
+                                    <% } %>
+                                </td>
+                                
+                                <td class="text-center pe-4">
+                                    <% if (t.status === 'pendente') { %>
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pendente</span>
+                                    <% } else if (t.status === 'aprovada') { %>
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Aprovada</span>
+                                    <% } else { %>
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejeitada</span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,702 @@
+<style>
+    .folder-card { cursor: pointer; transition: all 0.2s ease-in-out; border: 2px solid transparent; }
+    .folder-card:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0, 0.15)!important; border-color: inherit; }
+    .produto-card-quadrado { transition: all 0.2s ease; border: 2px solid #e9ecef; }
+    .produto-card-quadrado:hover { border-color: #0d6efd; background-color: #f8fbff !important; transform: scale(1.02); box-shadow: 0 .5rem 1rem rgba(13, 110, 253, 0.15)!important; }
+    .search-box { max-width: 350px; }
+    .table-scrollable { max-height: 45vh; overflow-y: auto; border-radius: 5px; }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2"><i class="bi bi-bar-chart-steps text-primary"></i> Painel Logístico e Estoque de Cortes SCP</h1>
+</div>
+
+<% if (malhariasData.length === 0) { %>
+    <div class="alert alert-warning text-center shadow-sm py-4">
+        <i class="bi bi-exclamation-triangle fs-1 text-warning d-block mb-2"></i>
+        <h5 class="fw-bold">Nenhuma malharia vinculada</h5>
+        <p class="mb-0 text-muted">Você não possui malharias atribuídas para visualizar os cortes.</p>
+    </div>
+<% } else { %>
+    
+    <% 
+        const saudavel = malhariasData.filter(m => m.status_estoque === 'saudavel');
+        const baixo = malhariasData.filter(m => m.status_estoque === 'baixo');
+        const semEstoque = malhariasData.filter(m => m.status_estoque === 'sem_estoque');
+    %>
+
+    <div id="view-malharias" class="view-section">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 bg-light p-3 rounded border">
+            <h5 class="text-secondary m-0 fw-bold"><i class="bi bi-search"></i> Busque uma oficina:</h5>
+            <div class="input-group search-box shadow-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" placeholder="Digite o nome..." onkeyup="pesquisarCards(this, 'conteudo-malharias')">
+            </div>
+        </div>
+
+        <div id="conteudo-malharias">
+            
+            <!-- 1º LUGAR NO TOPO: BLOCO VERMELHO (SEM ESTOQUE) -->
+            <% if(semEstoque.length > 0) { %>
+                <h4 class="fw-bold text-danger mb-3 mt-4 border-bottom border-danger border-2 pb-2 d-flex align-items-center">
+                    <i class="bi bi-truck fs-3 me-2"></i> Sem Estoque <span class="badge bg-danger ms-3 fs-6">Prioridade Alta</span>
+                </h4>
+                <div class="row g-4 mb-4">
+                    <% semEstoque.forEach(function(malharia) { %>
+                        <div class="col-sm-6 col-md-4 col-lg-3 item-pesquisavel" data-search="<%= malharia.nome.toLowerCase() %>">
+                            <div class="card h-100 shadow-sm folder-card bg-white border-danger border-opacity-50" onclick="abrirProdutos('<%= malharia.id %>')">
+                                <div class="card-body text-center d-flex flex-column pt-4 pb-2">
+                                    <h5 class="fw-bold text-dark mb-1 text-truncate"><%= malharia.nome %></h5>
+                                    <small class="text-muted"><%= malharia.tipo || 'Setor Padrão' %></small>
+                                    
+                                    <div class="mt-auto pt-3">
+                                        <div class="bg-danger bg-opacity-10 rounded p-2 border border-danger border-opacity-25">
+                                            <span class="text-danger fw-bold display-6 d-block">0</span>
+                                            <small class="text-danger fw-bold" style="letter-spacing: 1px;">PEÇAS EM ESTOQUE</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+
+            <!-- 2º LUGAR NO MEIO: BLOCO AMARELO (ESTOQUE BAIXO) -->
+            <% if(baixo.length > 0) { %>
+                <h4 class="fw-bold text-warning text-dark mb-3 mt-4 border-bottom border-warning border-2 pb-2 d-flex align-items-center">
+                    <i class="bi bi-truck fs-3 me-2"></i> Estoque Baixo <span class="badge bg-warning text-dark ms-3 fs-6">Abaixo de 30% da Meta Semanal</span>
+                </h4>
+                <div class="row g-4 mb-4">
+                    <% baixo.forEach(function(malharia) { %>
+                        <div class="col-sm-6 col-md-4 col-lg-3 item-pesquisavel" data-search="<%= malharia.nome.toLowerCase() %>">
+                            <div class="card h-100 shadow-sm folder-card bg-white border-warning border-opacity-75" onclick="abrirProdutos('<%= malharia.id %>')">
+                                <div class="card-body text-center d-flex flex-column pt-4 pb-2">
+                                    <h5 class="fw-bold text-dark mb-1 text-truncate"><%= malharia.nome %></h5>
+                                    <small class="text-muted"><%= malharia.tipo || 'Setor Padrão' %></small>
+                                    
+                                    <div class="mt-auto pt-3">
+                                        <div class="bg-warning bg-opacity-10 rounded p-2 border border-warning border-opacity-50">
+                                            <span class="text-warning-emphasis fw-bold display-6 d-block"><%= malharia.total_saldo %></span>
+                                            <small class="text-warning-emphasis fw-bold" style="letter-spacing: 1px;">PEÇAS EM ESTOQUE</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-light border w-100 mt-3 text-muted fw-bold shadow-sm" onclick="event.stopPropagation(); abrirModalAnalise(this)" data-nome="<%= malharia.nome %>" data-saldo="<%= malharia.total_saldo %>" data-calc="<%= encodeURIComponent(JSON.stringify(malharia.calculo)) %>">
+                                        <i class="bi bi-calculator"></i> Ver Análise
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+
+            <!-- 3º LUGAR NO FUNDO: BLOCO VERDE (SAUDÁVEL) -->
+            <% if(saudavel.length > 0) { %>
+                <h4 class="fw-bold text-success mb-3 mt-4 border-bottom border-success border-2 pb-2 d-flex align-items-center">
+                    <i class="bi bi-truck fs-3 me-2"></i> Estoque Saudável <span class="badge bg-success ms-3 fs-6">Acima de 30% da Meta Semanal</span>
+                </h4>
+                <div class="row g-4 mb-4">
+                    <% saudavel.forEach(function(malharia) { %>
+                        <div class="col-sm-6 col-md-4 col-lg-3 item-pesquisavel" data-search="<%= malharia.nome.toLowerCase() %>">
+                            <div class="card h-100 shadow-sm folder-card bg-white border-success border-opacity-50" onclick="abrirProdutos('<%= malharia.id %>')">
+                                <div class="card-body text-center d-flex flex-column pt-4 pb-2">
+                                    <h5 class="fw-bold text-dark mb-1 text-truncate"><%= malharia.nome %></h5>
+                                    <small class="text-muted"><%= malharia.tipo || 'Setor Padrão' %></small>
+                                    
+                                    <div class="mt-auto pt-3">
+                                        <div class="bg-success bg-opacity-10 rounded p-2 border border-success border-opacity-25">
+                                            <span class="text-success fw-bold display-6 d-block"><%= malharia.total_saldo %></span>
+                                            <small class="text-success fw-bold" style="letter-spacing: 1px;">PEÇAS EM ESTOQUE</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-light border w-100 mt-3 text-muted fw-bold shadow-sm" onclick="event.stopPropagation(); abrirModalAnalise(this)" data-nome="<%= malharia.nome %>" data-saldo="<%= malharia.total_saldo %>" data-calc="<%= encodeURIComponent(JSON.stringify(malharia.calculo)) %>">
+                                        <i class="bi bi-calculator"></i> Ver Análise
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+
+        </div>
+    </div>
+
+    <!-- NAVEGAÇÃO DE PRODUTOS INTERNOS DA MALHARIA -->
+    <% malhariasData.forEach(function(malharia) { %>
+        <div id="view-produtos-<%= malharia.id %>" class="view-section d-none">
+            <div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-3 flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-outline-secondary shadow-sm" onclick="mostrarMalharias()"><i class="bi bi-arrow-left"></i> Voltar</button>
+                    <h4 class="m-0 fw-bold text-dark"><i class="bi bi-shop text-primary me-1"></i> <%= malharia.nome %> <span class="text-muted fw-normal fs-5 mx-2">/</span> <span class="text-secondary"><i class="bi bi-box-seam"></i> Detalhamento de Estoque</span></h4>
+                </div>
+                <div class="d-flex gap-2">
+                    <% if (locals.user && user.nivel >= 3) { %>
+                        <button class="btn btn-primary shadow-sm fw-bold" onclick="prepararNovoCorte('<%= malharia.id %>', '<%= malharia.nome %>')">
+                            <i class="bi bi-plus-circle"></i> Enviar Novo Lote para Oficina
+                        </button>
+                    <% } %>
+                    <% if (malharia.produtos.length > 0) { %>
+                    <div class="input-group search-box shadow-sm">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar processo ou produto..." onkeyup="pesquisarCards(this, 'lista-produtos-<%= malharia.id %>')">
+                    </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <% if (malharia.produtos.length === 0) { %>
+                <div class="alert alert-secondary text-center py-5 border-dashed bg-light">
+                    <i class="bi bi-box display-4 text-muted d-block mb-3 opacity-25"></i>
+                    <h5 class="text-secondary">Nenhum histórico de cortes nesta malharia.</h5>
+                </div>
+            <% } else { %>
+                <div class="row g-4" id="lista-produtos-<%= malharia.id %>">
+                    <% malharia.produtos.forEach(function(item) { %>
+                        <% let searchData = `${item.numero_processo} ${item.nome} ${item.descricao} ${item.tamanho}`.toLowerCase(); %>
+                        <div class="col-12 col-sm-6 col-md-4 col-xl-3 item-pesquisavel" data-search="<%= searchData %>">
+                            <div class="card h-100 shadow-sm produto-card-quadrado bg-white p-2">
+                                <div class="card-body d-flex flex-column p-2 w-100 h-100">
+                                    <div class="mb-2 text-center">
+                                        <span class="badge bg-light text-dark border mb-2 shadow-sm"><i class="bi bi-folder2-open"></i> Proc: <%= item.numero_processo %></span>
+                                        <h6 class="fw-bold text-dark mb-1" style="font-size: 0.95rem; line-height: 1.2;"><%= item.nome %></h6>
+                                        <div class="text-muted small text-truncate" title="<%= item.descricao %>"><%= item.descricao || 'Sem descrição' %></div>
+                                        <% if(item.tamanho && item.tamanho !== '-') { %><span class="badge bg-secondary mt-1">Tam: <%= item.tamanho %></span><% } %>
+                                    </div>
+                                    
+                                    <div class="mt-auto pt-2">
+                                        <div class="bg-light rounded p-2 border">
+                                            <div class="d-flex justify-content-between align-items-center mb-1 small">
+                                                <span class="text-muted fw-bold"><i class="bi bi-truck"></i> Enviados p/ Oficina:</span>
+                                                <span class="fw-bold text-dark"><%= item.total_cortado %></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-1 small border-bottom pb-1">
+                                                <span class="text-muted fw-bold"><i class="bi bi-scissors"></i> Já Costurados:</span>
+                                                <span class="fw-bold text-success"><%= item.total_produzido %></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center pt-1">
+                                                <span class="fw-bold text-dark" style="font-size: 0.85rem;">ESTOQUE DISPONÍVEL:</span>
+                                                <span class="fw-bold fs-5 <%= item.saldo > 0 ? 'text-primary' : 'text-danger' %>"><%= item.saldo %></span>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-secondary w-100 fw-bold shadow-sm mt-2" onclick="abrirHistoricoModal('modalHistorico-<%= malharia.id %>-<%= item.processo_item_id %>')">
+                                            <i class="bi bi-clock-history"></i> Histórico de Envios
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal Histórico de Envios -->
+                        <div class="modal fade" id="modalHistorico-<%= malharia.id %>-<%= item.processo_item_id %>" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-light">
+                                        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-clock-history text-danger"></i> Histórico de Envios para Costura</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-0 table-scrollable" style="max-height: 50vh;">
+                                        <div class="bg-white p-3 border-bottom text-center position-sticky top-0 shadow-sm" style="z-index: 10;">
+                                            <h6 class="mb-1 text-primary fw-bold"><%= item.nome %> <%= item.tamanho && item.tamanho !== '-' ? `(${item.tamanho})` : '' %></h6>
+                                            <small class="text-muted">Processo: <%= item.numero_processo %></small><br>
+                                            <span class="badge bg-primary fs-6 mt-1"><%= item.total_cortado %> unidades totais enviadas</span>
+                                        </div>
+                                        <ul class="list-group list-group-flush">
+                                            <% item.historico.forEach(h => { %>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                                    <div>
+                                                        <span class="d-block fw-bold text-dark"><i class="bi bi-calendar-event text-muted me-1"></i> <%= new Date(h.data_corte).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) %></span>
+                                                        <small class="text-muted"><span class="text-primary fw-bold"><%= h.quantidade %> peças</span> enviadas</small>
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <a href="<%= h.documento_comprovante %>" target="_blank" class="btn btn-sm btn-outline-danger" title="Ver Comprovante PDF"><i class="bi bi-file-pdf"></i></a>
+                                                        <% if (locals.user && user.nivel >= 3) { %>
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="abrirModalEdicao('<%= h.id %>', '<%= h.quantidade %>', '<%= new Date(h.data_corte).toISOString().split('T')[0] %>')"><i class="bi bi-pencil"></i></button>
+                                                            <form action="/cortes/<%= h.id %>/delete" method="POST" onsubmit="return confirm('Remover este registro permanentemente? O saldo ficará distorcido se as peças já foram produzidas.');">
+                                                                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-trash"></i></button>
+                                                            </form>
+                                                        <% } %>
+                                                    </div>
+                                                </li>
+                                            <% }) %>
+                                        </ul>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </div>
+    <% }); %>
+<% } %>
+
+<!-- MODAL ANÁLISE MATEMÁTICA DA OFICINA -->
+<div class="modal fade" id="modalAnalise" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-calculator"></i> Análise de Capacidade Logística</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <h5 class="text-center fw-bold text-primary mb-3" id="analiseNome"></h5>
+                
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <div class="bg-white p-2 rounded shadow-sm border">
+                            <span class="d-block text-muted small fw-bold">SALDO FÍSICO</span>
+                            <span class="fs-4 fw-bold text-dark" id="analiseSaldo"></span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white p-2 rounded shadow-sm border">
+                            <span class="d-block text-muted small fw-bold">MÁQUINAS</span>
+                            <span class="fs-4 fw-bold text-dark" id="analiseMaquinas"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded shadow-sm border mb-3">
+                    <h6 class="border-bottom pb-2 fw-bold text-secondary mb-3">Memória de Cálculo (Base 5 dias)</h6>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Média Diária Exigida (Por Máq):</span>
+                        <b id="analiseMediaMeta"></b>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1 text-muted">
+                        <span>Capacidade da Oficina p/ Dia:</span>
+                        <b id="analiseDiaria"></b>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1 text-primary">
+                        <span>Capacidade Semanal Total:</span>
+                        <b id="analiseSemanal"></b>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Percentual Coberto:</span>
+                        <span class="badge fs-6" id="analisePercentualBadge"></span>
+                    </div>
+                </div>
+
+                <div class="alert small mb-0 fw-bold text-center" id="analiseMensagem"></div>
+                
+                <h6 class="fw-bold text-secondary mt-4 mb-2 small text-uppercase">Cortes que formaram a média:</h6>
+                <ul class="list-group list-group-flush small rounded border" id="analiseListaProdutos"></ul>
+            </div>
+            <div class="modal-footer bg-white">
+                <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Carrinho (Lançar Novo Corte) -->
+<div class="modal fade" id="modalNovoCorte" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-in-right"></i> Envio de Lote Cortado</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/cortes/store" method="POST" enctype="multipart/form-data" id="formCortes" onsubmit="return validarEnvio()">
+                <div class="modal-body bg-light">
+                    <div class="row g-3 mb-4 p-3 bg-white border rounded shadow-sm">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small text-secondary"><i class="bi bi-shop"></i> Malharia de Destino</label>
+                            <input type="text" id="malharia_nome_display" class="form-control shadow-sm bg-light text-primary fw-bold border-primary border-opacity-50" readonly>
+                            <input type="hidden" name="malharia_id" id="malharia_id_hidden">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-secondary"><i class="bi bi-calendar-event"></i> Data de Envio/Corte</label>
+                            <input type="date" name="data_corte" class="form-control shadow-sm border-primary border-opacity-50" value="<%= new Date().toISOString().split('T')[0] %>" required>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
+                        <h6 class="fw-bold text-dark m-0"><i class="bi bi-list-check"></i> Produtos Cortados Neste Lote</h6>
+                        <button type="button" class="btn btn-success shadow-sm fw-bold" id="btnBuscarProdutos" disabled onclick="abrirModalBusca()">
+                            <i class="bi bi-search"></i> Adicionar Produtos
+                        </button>
+                    </div>
+
+                    <div class="table-responsive bg-white border rounded shadow-sm mb-4 table-scrollable">
+                        <table class="table table-hover align-middle mb-0" id="tabelaListaCortes">
+                            <thead class="table-dark position-sticky top-0 shadow-sm" style="z-index: 10;">
+                                <tr>
+                                    <th class="ps-3" style="width: 50px;">Arte</th>
+                                    <th>Processo / Órgão</th>
+                                    <th>Produto & Descrição</th>
+                                    <th class="text-center" style="width: 140px;">Qtd. Enviada</th>
+                                    <th class="text-center" style="width: 60px;">X</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="linhaVaziaCortes">
+                                    <td colspan="5" class="text-center py-4 text-muted fst-italic">Busque os produtos para registrar o envio.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mb-2 p-3 bg-white border border-primary border-opacity-50 rounded shadow-sm">
+                        <label class="form-label text-primary fw-bold small"><i class="bi bi-file-earmark-pdf"></i> Comprovante do Lote (PDF) <span class="text-danger">* OBRIGATÓRIO</span></label>
+                        <input type="file" name="documento_comprovante" class="form-control" accept="application/pdf" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm" id="btnSalvarCorte"><i class="bi bi-check-circle"></i> Salvar Lote</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edição -->
+<div class="modal fade" id="modalEditarCorte" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square"></i> Editar Lançamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarCorte" method="POST" enctype="multipart/form-data">
+                <div class="modal-body bg-light">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Nova Quantidade</label>
+                            <input type="number" name="quantidade" id="edit_quantidade" class="form-control fw-bold text-dark border-dark border-opacity-50 shadow-sm" min="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Data do Lançamento</label>
+                            <input type="date" name="data_corte" id="edit_data_corte" class="form-control shadow-sm" required>
+                        </div>
+                    </div>
+                    <div class="mb-2 p-3 bg-white border rounded shadow-sm">
+                        <label class="form-label text-secondary fw-bold small"><i class="bi bi-file-earmark-pdf"></i> Substituir Comprovante (Opcional)</label>
+                        <input type="file" name="documento_comprovante" class="form-control" accept="application/pdf">
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-dark px-4 fw-bold shadow-sm" id="btnSalvarEdicao"><i class="bi bi-check-circle"></i> Atualizar Dados</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal BUSCA -->
+<div class="modal fade" id="modalBuscaProdutos" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check2-square"></i> Produtos Permitidos</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="voltarParaModalCorte()"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="mb-3">
+                    <input type="text" id="inputBuscaModalCorte" class="form-control form-control-lg shadow-sm" placeholder="Buscar..." onkeyup="filtrarModalProdutos()">
+                </div>
+                <div class="table-responsive bg-white rounded border table-scrollable">
+                    <table class="table table-hover table-sm align-middle mb-0" id="tabelaModalCortes">
+                        <thead class="table-light position-sticky top-0 shadow-sm" style="z-index: 10;">
+                            <tr>
+                                <th style="width: 50px;" class="text-center"><input type="checkbox" class="form-check-input" id="checkAllModalCorte" onclick="toggleAllModalCortes(this)"></th>
+                                <th style="width: 60px;" class="text-center">Arte</th>
+                                <th>Processo / Órgão</th>
+                                <th>Produto</th>
+                                <th>Qtd. Original do Pedido</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyModalCortes"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" onclick="voltarParaModalCorte()">Voltar</button>
+                <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" onclick="adicionarCortesSelecionados()"><i class="bi bi-plus-circle"></i> Adicionar à Lista</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalZoomImagem" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg bg-dark text-white">
+            <div class="modal-header border-0 pb-0 justify-content-between">
+                <h6 class="modal-title fw-bold text-truncate" id="modalZoomTitulo">Visualização do Modelo</h6>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                <img id="modalZoomElemento" src="" class="img-fluid rounded shadow d-none" style="max-height: 70vh; object-fit: contain;">
+                <div id="modalZoomPdfContainer" class="d-none" style="height: 70vh; width: 100%;">
+                    <iframe id="modalZoomPdfElemento" src="" style="width: 100%; height: 100%; border: none;" class="rounded"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const todosItens = <%- todosItensJSON %>;
+    const processosAtivos = <%- processosAtivosJSON %>;
+    let maquinasDaMalharia = [];
+    let combinacoesFiltradas = [];
+    let listaCortesCarrinho = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.modal').forEach(modal => {
+            document.body.appendChild(modal); 
+        });
+    });
+
+    function abrirModalAnalise(btn) {
+        const nome = btn.getAttribute('data-nome');
+        const saldo = btn.getAttribute('data-saldo');
+        const calc = JSON.parse(decodeURIComponent(btn.getAttribute('data-calc')));
+
+        document.getElementById('analiseNome').innerText = `Oficina: ${nome}`;
+        document.getElementById('analiseSaldo').innerText = saldo;
+        document.getElementById('analiseMaquinas').innerText = calc.qtd_maquinas;
+        document.getElementById('analiseMediaMeta').innerText = `${calc.media_meta} pçs`;
+        document.getElementById('analiseDiaria').innerText = `${calc.capacidade_diaria} pçs`;
+        document.getElementById('analiseSemanal').innerText = `${calc.capacidade_semanal} pçs`;
+        
+        const badge = document.getElementById('analisePercentualBadge');
+        badge.innerText = `${calc.percentual}%`;
+        
+        const msg = document.getElementById('analiseMensagem');
+        const percent = parseFloat(calc.percentual);
+        
+        if (saldo == 0) {
+            badge.className = 'badge bg-danger';
+            msg.className = 'alert small mb-0 fw-bold text-center alert-danger border-danger';
+            msg.innerText = "A oficina não possui cortes para trabalhar. Envie produção urgente.";
+        } else if (percent < 30) {
+            badge.className = 'badge bg-warning text-dark';
+            msg.className = 'alert small mb-0 fw-bold text-center alert-warning border-warning';
+            msg.innerText = "Estoque não garante 1.5 dias inteiros de trabalho. Risco de interrupção logística!";
+        } else {
+            badge.className = 'badge bg-success';
+            msg.className = 'alert small mb-0 fw-bold text-center alert-success border-success';
+            msg.innerText = "Estoque com cobertura saudável para fluidez dos processos.";
+        }
+
+        const ul = document.getElementById('analiseListaProdutos');
+        ul.innerHTML = '';
+        if (calc.produtos.length === 0) {
+            ul.innerHTML = '<li class="list-group-item text-center text-muted">Nenhum produto analisado.</li>';
+        } else {
+            calc.produtos.forEach(p => {
+                ul.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>${p.nome} ${p.tamanho !== '-' ? `(Tam: ${p.tamanho})` : ''}</span>
+                    <span class="badge bg-secondary">Meta base: ${p.meta}</span>
+                </li>`;
+            });
+        }
+
+        let modal = bootstrap.Modal.getInstance(document.getElementById('modalAnalise'));
+        if (!modal) modal = new bootstrap.Modal(document.getElementById('modalAnalise'));
+        modal.show();
+    }
+
+    function ocultarTodasAsTelas() { document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none')); }
+    function mostrarMalharias() { ocultarTodasAsTelas(); document.getElementById('view-malharias').classList.remove('d-none'); }
+    function abrirProdutos(malhariaId) { ocultarTodasAsTelas(); document.getElementById('view-produtos-' + malhariaId).classList.remove('d-none'); }
+
+    function pesquisarCards(inputElement, containerId) {
+        const termo = inputElement.value.toLowerCase().trim();
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.querySelectorAll('.item-pesquisavel').forEach(card => card.style.display = card.getAttribute('data-search').includes(termo) ? '' : 'none');
+    }
+
+    function prepararNovoCorte(malhariaId, malhariaNome) {
+        document.getElementById('malharia_id_hidden').value = malhariaId;
+        document.getElementById('malharia_nome_display').value = malhariaNome;
+        listaCortesCarrinho = [];
+        atualizarTabelaCarrinho();
+        carregarMaquinasEAtivarBusca(malhariaId);
+        
+        let modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoCorte')) || new bootstrap.Modal(document.getElementById('modalNovoCorte'));
+        modal.show();
+    }
+
+    function abrirHistoricoModal(idModal) {
+        let modal = bootstrap.Modal.getInstance(document.getElementById(idModal)) || new bootstrap.Modal(document.getElementById(idModal));
+        modal.show();
+    }
+
+    function abrirModalEdicao(idCorte, quantidadeAtual, dataCorteAtual) {
+        document.getElementById('formEditarCorte').action = `/cortes/${idCorte}/update`;
+        document.getElementById('edit_quantidade').value = quantidadeAtual;
+        document.getElementById('edit_data_corte').value = dataCorteAtual;
+        let modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarCorte')) || new bootstrap.Modal(document.getElementById('modalEditarCorte'));
+        modal.show();
+    }
+
+    async function carregarMaquinasEAtivarBusca(malhariaId) {
+        const btnBusca = document.getElementById('btnBuscarProdutos');
+        btnBusca.disabled = true;
+        btnBusca.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        try {
+            const res = await fetch(`/registros/api/malharia-info/${malhariaId}`);
+            const data = await res.json();
+            maquinasDaMalharia = data.itens || [];
+            btnBusca.disabled = false;
+            btnBusca.innerHTML = '<i class="bi bi-search"></i> Adicionar Produtos';
+        } catch (e) { alert("Falha ao analisar máquinas da oficina."); }
+    }
+
+    function abrirModalBusca() {
+        combinacoesFiltradas = [];
+        const checkAll = document.getElementById('checkAllModalCorte');
+        if (checkAll) checkAll.checked = false;
+
+        processosAtivos.forEach(p => {
+            if (p.itens) {
+                p.itens.forEach((pi) => {
+                    const dadosItem = todosItens.find(i => String(i.id) === String(pi.item_id));
+                    if (dadosItem) {
+                        let temMaquinaNecessaria = true;
+                        if (dadosItem.maquinas && dadosItem.maquinas.length > 0) {
+                            const idsMaquinasProduto = dadosItem.maquinas.map(m => String(m.maquinario_id || m.maquina?.id));
+                            const idsMaquinasOficina = maquinasDaMalharia.filter(m => m.status !== 'indisponivel').map(m => String(m.maquinario_id || m.maquinario?.id));
+                            temMaquinaNecessaria = idsMaquinasProduto.some(id => idsMaquinasOficina.includes(id));
+                        }
+
+                        if (temMaquinaNecessaria) {
+                            combinacoesFiltradas.push({
+                                processo_id: p.id, processo_item_id: pi.id,
+                                numero_processo: p.numero_processo || 'S/N', orgao: p.orgao,
+                                item_id: dadosItem.id, nome_produto: dadosItem.nome,
+                                descricao: pi.descricao || '', tamanho: pi.tamanho || '',
+                                solicitado: pi.qtd_solicitada || 0, id_unico: `${p.id}_${pi.id}`
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        renderizarModalBusca();
+        
+        const m1 = bootstrap.Modal.getInstance(document.getElementById('modalNovoCorte'));
+        if (m1) m1.hide();
+        setTimeout(() => {
+            let m2 = bootstrap.Modal.getInstance(document.getElementById('modalBuscaProdutos')) || new bootstrap.Modal(document.getElementById('modalBuscaProdutos'));
+            m2.show();
+        }, 400);
+    }
+
+    function voltarParaModalCorte() {
+        const m2 = bootstrap.Modal.getInstance(document.getElementById('modalBuscaProdutos'));
+        if (m2) m2.hide();
+        setTimeout(() => {
+            let m1 = bootstrap.Modal.getInstance(document.getElementById('modalNovoCorte')) || new bootstrap.Modal(document.getElementById('modalNovoCorte'));
+            m1.show();
+        }, 400);
+    }
+
+    function renderizarModalBusca() {
+        const tbody = document.getElementById('tbodyModalCortes');
+        tbody.innerHTML = '';
+        if (combinacoesFiltradas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nenhum produto compatível com as máquinas.</td></tr>'; return;
+        }
+
+        combinacoesFiltradas.forEach(comb => {
+            if (!listaCortesCarrinho.some(c => String(c.id_unico) === String(comb.id_unico))) {
+                tbody.innerHTML += `
+                    <tr class="linha-busca-corte" data-search="${`${comb.nome_produto} ${comb.numero_processo} ${comb.orgao} ${comb.tamanho}`.toLowerCase()}">
+                        <td class="text-center align-middle"><input type="checkbox" class="form-check-input check-corte" value="${comb.id_unico}"></td>
+                        <td class="text-center align-middle p-1"><i class="bi bi-box text-muted fs-4"></i></td>
+                        <td class="align-middle"><span class="fw-bold text-primary">${comb.numero_processo}</span><br><small class="text-muted">${comb.orgao}</small></td>
+                        <td class="align-middle"><span class="fw-bold text-dark">${comb.nome_produto}</span> ${comb.tamanho && comb.tamanho !== '-' ? `<span class="badge bg-secondary ms-1">${comb.tamanho}</span>` : ''}</td>
+                        <td class="align-middle fw-bold text-dark">Pedido: ${comb.solicitado} un</td>
+                    </tr>
+                `;
+            }
+        });
+    }
+
+    function filtrarModalProdutos() {
+        const termo = document.getElementById('inputBuscaModalCorte').value.toLowerCase().trim();
+        document.querySelectorAll('.linha-busca-corte').forEach(linha => {
+            linha.style.display = linha.getAttribute('data-search').includes(termo) ? '' : 'none';
+        });
+    }
+
+    function toggleAllModalCortes(source) {
+        document.querySelectorAll('#tbodyModalCortes .check-corte').forEach(cb => {
+            if (cb.closest('tr').style.display !== 'none') cb.checked = source.checked;
+        });
+    }
+
+    function adicionarCortesSelecionados() {
+        const selecionados = document.querySelectorAll('#tbodyModalCortes .check-corte:checked');
+        if(selecionados.length === 0) { alert("Selecione pelo menos um produto na lista."); return; }
+        
+        selecionados.forEach(function(cb) {
+            const comb = combinacoesFiltradas.find(c => String(c.id_unico) === String(cb.value));
+            if (comb) listaCortesCarrinho.push({ ...comb, qtd_corte: comb.solicitado }); 
+        });
+        
+        atualizarTabelaCarrinho();
+        voltarParaModalCorte();
+    }
+
+    function removerDoCarrinho(index) {
+        listaCortesCarrinho.splice(index, 1);
+        atualizarTabelaCarrinho();
+    }
+
+    function atualizarTabelaCarrinho() {
+        const tbody = document.querySelector('#tabelaListaCortes tbody');
+        if (listaCortesCarrinho.length === 0) {
+            tbody.innerHTML = `<tr id="linhaVaziaCortes"><td colspan="5" class="text-center py-4 text-muted fst-italic">Busque os produtos para registrar o envio.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        listaCortesCarrinho.forEach((prod, index) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td class="text-center align-middle p-1"><i class="bi bi-box text-muted fs-4"></i></td>
+                    <td class="align-middle"><span class="fw-bold text-primary">${prod.numero_processo}</span><div class="small text-muted">${prod.orgao}</div></td>
+                    <td class="align-middle">
+                        <span class="fw-bold text-dark">${prod.nome_produto}</span> ${prod.tamanho && prod.tamanho !== '-' ? `<span class="badge bg-secondary ms-1">${prod.tamanho}</span>` : ''}
+                        <input type="hidden" name="processos_ids[]" value="${prod.processo_id}">
+                        <input type="hidden" name="processo_item_ids[]" value="${prod.processo_item_id}">
+                        <input type="hidden" name="itens_ids[]" value="${prod.item_id}">
+                    </td>
+                    <td class="align-middle text-center">
+                        <input type="number" name="quantidades[]" class="form-control text-center fw-bold text-primary border-primary" value="${prod.qtd_corte}" min="1" required>
+                    </td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="removerDoCarrinho(${index})"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function validarEnvio() {
+        if (listaCortesCarrinho.length === 0) { alert("Atenção: Adicione pelo menos um produto na lista."); return false; }
+        document.getElementById('btnSalvarCorte').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando...';
+        document.getElementById('btnSalvarCorte').disabled = true;
+        return true;
+    }
+
+    document.getElementById('formEditarCorte').addEventListener('submit', function() {
+        const btn = document.getElementById('btnSalvarEdicao');
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btn.disabled = true;
+    });
+</script>

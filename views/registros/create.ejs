@@ -1,0 +1,674 @@
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Novo Apontamento</h1>
+    <div class="btn-toolbar mb-2 mb-md-0"><a href="/registros" class="btn btn-sm btn-secondary">Voltar</a></div>
+</div>
+
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card shadow-sm border-primary border-top border-3">
+            <div class="card-body">
+                <form action="/registros" method="POST" id="formRegistro" onsubmit="return validarFormulario(event)">
+                
+                    <div class="form-check form-switch mb-4 bg-light p-3 rounded border">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" id="sem_producao" name="sem_producao" value="1" onchange="toggleSemProducao()" style="width: 40px; height: 20px;">
+                        <label class="form-check-label fw-bold text-danger pt-1 fs-6 ms-2" for="sem_producao">Não houve produção nesta oficina</label>
+                    </div>
+
+                    <h5 class="card-title text-primary border-bottom pb-2">Dados Gerais</h5>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold">Data do Apontamento</label>
+                            <input type="date" class="form-control" name="data_registro" value="<%= new Date().toISOString().split('T')[0] %>" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Malharia / Setor</label>
+                            <select class="form-select" id="malharia_id" name="malharia_id" required onchange="carregarDadosMalharia()">
+                                <option value="" disabled selected>Selecione a malharia...</option>
+                                <% malharias.forEach(function(mal) { %>
+                                    <option value="<%= mal.id %>" data-internos="<%= mal.num_internos || 0 %>"><%= mal.nome %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold">Internos Trabalhando</label>
+                            <input type="number" class="form-control" id="qtd_internos" name="qtd_internos" min="1" required disabled oninput="validarInternos()">
+                           <small class="text-danger" id="avisoInternos"></small>
+                        </div>
+                    </div>
+
+                    <div id="boxJustificativa" class="mb-3 p-3 border rounded" style="display: none;">
+                        <label id="justificativaLabel" class="form-label fw-bold"></label>
+                        <select class="form-select" name="justificativa_id" id="justificativa_id">
+                            <option value="">Selecione a Justificativa...</option>
+                            <% justificativas.forEach(function(just) { %>
+                                <option value="<%= just.id %>"><%= just.nome %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div id="blocoProducao">
+                        <h5 class="card-title text-primary border-bottom pb-2 mt-4">Lista de Produção do Dia</h5>
+
+                        <div class="row bg-light p-3 rounded mb-3 border align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="m-0 text-secondary fw-bold"><i class="bi bi-box-seam"></i> Produtos a Produzir</h6>
+                               <small class="text-muted">
+                                    Selecione os produtos que foram trabalhados. <br><b class="text-danger">Atenção:</b> Caso não tenha havido nenhuma produção, ative o botão "Não houve produção" no topo.
+                               </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button type="button" class="btn btn-success" onclick="abrirModalBusca()">
+                                    <i class="bi bi-search"></i> Buscar Produtos
+                                </button>
+                            </div>
+                   </div>
+
+                        <table class="table table-bordered table-sm align-middle" id="tabelaProducao">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 60px;" class="text-center">Foto/Arte</th>
+                                    <th>Órgão</th>
+                                    <th>Produto</th>
+                                    <th>Descrição</th>
+                                    <th style="width: 150px;" class="text-center">Qtd Produzida</th>
+                                    <th class="text-center" style="width: 80px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="linhaVazia"><td colspan="6" class="text-center text-muted">Nenhum produto selecionado.</td></tr>
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="4" class="text-end fw-bold align-middle">Meta Calculada:</td>
+                                    <td colspan="2" class="align-middle">
+                                        <span id="displayMeta" class="badge bg-primary fs-5" style="cursor:help;" onclick="mostrarExplicacaoMeta()">0</span>
+                                        <span class="ms-2 text-muted" style="font-size: 0.8em; cursor:help;" onclick="mostrarExplicacaoMeta()">(Clique para entender)</span>
+                                        <input type="hidden" name="meta_calculada" id="meta_calculada" value="0">
+                                        <input type="hidden" name="explicacao_meta" id="explicacao_meta">
+                                      </td>
+                                </tr>
+                                <tr>
+                                     <td colspan="4" class="text-end fw-bold align-middle">Total Produzido Hoje:</td>
+                                    <td colspan="2" class="align-middle"><span id="displayTotalProduzido" class="fw-bold text-success fs-5">0</span></td>
+                                 </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="mb-3">
+                       <label id="labelObservacao" class="form-label fw-bold">Observações Adicionais</label>
+                        <textarea class="form-control" name="observacao" rows="2"></textarea>
+                    </div>
+
+                    <div class="text-end">
+                       <button type="submit" class="btn btn-primary btn-lg px-5 shadow fw-bold">Salvar Apontamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalMeta" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">Como a meta foi calculada?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="textoExplicacaoMeta" style="white-space: pre-wrap; font-family: monospace; font-size: 14px;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalBuscaProdutos" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-search"></i> Selecionar Produtos para Produção</h5>
+                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" id="inputBuscaProduto" class="form-control form-control-lg" placeholder="Buscar por órgão, nome ou descrição do produto..." onkeyup="filtrarModalProdutos()">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm border align-middle" id="tabelaModalProdutos">
+                        <thead class="table-light">
+                            <tr>
+                               <th style="width: 50px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="checkAllModal" onclick="toggleAllModal(this)">
+                                 </th>
+                                <th style="width: 60px;" class="text-center">Arte</th>
+                                <th>Órgão</th>
+                                <th>Produto</th>
+                                <th>Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyModalProdutos">
+                        </tbody>
+                   </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success px-4" onclick="adicionarProdutosSelecionados()"><i class="bi bi-check-lg"></i> Adicionar Selecionados</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalZoomImagem" tabindex="-1" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg bg-dark text-white">
+            <div class="modal-header border-0 pb-0 justify-content-between">
+                <h6 class="modal-title fw-bold text-truncate" id="modalZoomTitulo">Visualização do Modelo</h6>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                <img id="modalZoomElemento" src="" class="img-fluid rounded shadow d-none" alt="Modelo Ampliado" style="max-height: 70vh; object-fit: contain;">
+                <div id="modalZoomPdfContainer" class="d-none" style="height: 70vh; width: 100%;">
+                    <iframe id="modalZoomPdfElemento" src="" style="width: 100%; height: 100%; border: none;" class="rounded"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAviso" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-warning">
+            <div class="modal-header bg-warning text-dark py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle"></i> Atenção</h6>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3" id="textoAviso"></div>
+            <div class="modal-footer py-1 justify-content-center">
+                <button type="button" class="btn btn-sm btn-dark px-3" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    const todosItens = <%- todosItensJSON %>;
+    const todosProcessos = <%- JSON.stringify(processos) %>; 
+    
+    let maquinasDaMalharia = [];
+    let maxInternos = 0;
+    let listaProducao = [];
+    let combinacoesDisponiveis = [];
+
+    function toggleSemProducao() {
+        const isSemProducao = document.getElementById('sem_producao').checked;
+        const blocoProducao = document.getElementById('blocoProducao');
+        const boxJustificativa = document.getElementById('boxJustificativa');
+        const selectJust = document.getElementById('justificativa_id');
+        const labelJust = document.getElementById('justificativaLabel');
+
+        if (isSemProducao) {
+            blocoProducao.style.display = 'none';
+            boxJustificativa.style.display = 'block';
+            selectJust.required = true;
+            
+            listaProducao = [];
+            atualizarTabela(); 
+            
+            document.getElementById('qtd_internos').min = "0";
+            
+            labelJust.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Sem Produção hoje. Informe o motivo obrigatório:';
+            boxJustificativa.className = 'mb-3 p-3 bg-danger bg-opacity-10 border border-danger rounded';
+            labelJust.className = 'form-label fw-bold text-danger-emphasis';
+        } else {
+            blocoProducao.style.display = 'block';
+            document.getElementById('qtd_internos').min = "1";
+            verificarJustificativa();
+        }
+    }
+
+    function exibirAviso(msg) {
+        document.getElementById('textoAviso').innerText = msg;
+        new bootstrap.Modal(document.getElementById('modalAviso')).show();
+    }
+
+    function escapeHTML(str) {
+        if (!str || str.trim() === '') return '-';
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    void function zoomImagem(url, titulo) {
+        window.zoomImagem = function(url, titulo) {
+            document.getElementById('modalZoomTitulo').innerText = titulo || 'Visualização do Modelo';
+            const imgEl = document.getElementById('modalZoomElemento');
+            const pdfContainer = document.getElementById('modalZoomPdfContainer');
+            const pdfEl = document.getElementById('modalZoomPdfElemento');
+            
+            const isPdf = url && url.toLowerCase().split('?')[0].endsWith('.pdf');
+            
+            if (isPdf) {
+                imgEl.classList.add('d-none');
+                imgEl.src = '';
+                pdfContainer.classList.remove('d-none');
+                pdfEl.src = url;
+            } else {
+                pdfContainer.classList.add('d-none');
+                pdfEl.src = '';
+                imgEl.classList.remove('d-none');
+                imgEl.src = url;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalZoomImagem'));
+            modal.show();
+        }
+    }();
+
+    $(document).ready(function() {
+        $('#malharia_id, #justificativa_id').select2({ theme: 'bootstrap-5', width: '100%' });
+        const params = new URLSearchParams(window.location.search);
+        if(params.has('malharia')) $('#malharia_id').val(params.get('malharia')).trigger('change');
+        if(params.has('data')) $('input[name="data_registro"]').val(params.get('data'));
+
+        // LÓGICA DO ASTERISCO NA OBSERVAÇÃO
+        $('#justificativa_id').on('change', function() {
+            const selectedText = $(this).find('option:selected').text().toLowerCase();
+            const labelObs = document.getElementById('labelObservacao');
+            if (labelObs) {
+                if (selectedText.includes('outro')) {
+                    labelObs.innerHTML = 'Observações Adicionais <span class="text-danger">* (Obrigatório para este motivo)</span>';
+                } else {
+                    labelObs.innerHTML = 'Observações Adicionais';
+                }
+            }
+        });
+    });
+
+    async function carregarDadosMalharia() {
+        const selectMal = document.getElementById('malharia_id');
+        const selectedOption = selectMal.options[selectMal.selectedIndex];
+        
+        maxInternos = parseInt(selectedOption.getAttribute('data-internos')) || 0;
+        
+        const inputInternos = document.getElementById('qtd_internos');
+        inputInternos.disabled = false;
+        inputInternos.max = maxInternos;
+        inputInternos.value = '';
+        inputInternos.placeholder = `Máx: ${maxInternos}`;
+        
+        try {
+            const res = await fetch(`/registros/api/malharia-info/${selectMal.value}`);
+            const data = await res.json();
+            maquinasDaMalharia = data.itens || [];
+        } catch (e) {
+            console.error("Erro ao procurar máquinas:", e);
+        }
+
+        recalcularMeta();
+    }
+
+    function validarInternos() {
+        const input = document.getElementById('qtd_internos');
+        const aviso = document.getElementById('avisoInternos');
+        if(parseInt(input.value) > maxInternos) {
+            aviso.innerText = `O número não pode exceder os ${maxInternos} vinculados!`;
+            input.value = maxInternos;
+        } else {
+            aviso.innerText = '';
+        }
+    }
+
+    function abrirModalBusca(filtroInicial = '') {
+        combinacoesDisponiveis = [];
+        $('#checkAllModal').prop('checked', false);
+
+        todosProcessos.forEach(p => {
+            const statusConcluido = p.situacao === 'Concluído' || p.situacao === 'Finalizado';
+            const semDemanda = p.totais && p.totais.faltante <= 0;
+            
+            if(!statusConcluido && !semDemanda && p.itens) {
+                p.itens.forEach((pi, idx) => {
+                    const dadosItem = todosItens.find(i => String(i.id) === String(pi.item_id));
+                    if(dadosItem) {
+                        const descricaoFinal = pi.descricao || dadosItem.descricao || '-';
+                        const tamanhoFinal = pi.tamanho || dadosItem.tamanho || ''; 
+
+                        let urlImagem = null;
+                        if (p.imagens && p.imagens.length > 0) {
+                            const imgProduto = p.imagens.find(img => String(img.processo_item_id) === String(pi.id));
+                            const imgGeral = p.imagens.find(img => !img.processo_item_id);
+                            urlImagem = imgProduto ? imgProduto.url_publica : (imgGeral ? imgGeral.url_publica : null);
+                        }
+
+                        combinacoesDisponiveis.push({
+                            processo_id: p.id,
+                            processo_item_id: pi.id, 
+                            orgao: p.orgao || 'N/A',
+                            item_id: dadosItem.id,
+                            nome_produto: dadosItem.nome || 'Sem Nome',
+                            descricao: descricaoFinal,
+                            tamanho: tamanhoFinal,
+                            url_imagem: urlImagem, 
+                            id_unico: `${p.id}_${dadosItem.id}_${pi.id || idx}`
+                        });
+                    }
+                });
+            }
+        });
+        
+        renderizarModalProdutos();
+        $('#modalBuscaProdutos').modal('show');
+        if (filtroInicial) {
+            setTimeout(() => { $('#inputBuscaProduto').val(filtroInicial); filtrarModalProdutos(); }, 300);
+        } else {
+            $('#inputBuscaProduto').val(''); filtrarModalProdutos();
+        }
+    }
+
+    function renderizarModalProdutos() {
+        const tbody = $('#tbodyModalProdutos');
+        tbody.empty();
+        if(combinacoesDisponiveis.length === 0) {
+            tbody.append('<tr><td colspan="5" class="text-center text-muted py-3">Nenhum produto pendente encontrado.</td></tr>');
+            return;
+        }
+
+        combinacoesDisponiveis.forEach(comb => {
+            const jaAdicionado = listaProducao.some(lp => 
+                String(lp.processo_item_id) === String(comb.processo_item_id)
+            );
+
+            if(!jaAdicionado) {
+                const isPdf = comb.url_imagem && comb.url_imagem.toLowerCase().split('?')[0].endsWith('.pdf');
+                const imgHtml = comb.url_imagem 
+                    ? (isPdf 
+                        ? `<div class="text-center border rounded bg-white p-1 shadow-sm d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; cursor: pointer;" onclick="zoomImagem('${comb.url_imagem}', '${escapeHTML(comb.nome_produto)}')"><i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i></div>`
+                        : `<img src="${comb.url_imagem}" class="img-thumbnail rounded" style="width: 45px; height: 45px; object-fit: cover; cursor: pointer;" onclick="zoomImagem('${comb.url_imagem}', '${escapeHTML(comb.nome_produto)}')">`)
+                    : `<div class="text-muted d-flex align-items-center justify-content-center border rounded bg-light" style="width: 45px; height: 45px;"><i class="bi bi-camera small"></i></div>`;
+
+                tbody.append(`
+                    <tr>
+                        <td class="text-center align-middle">
+                            <input type="checkbox" class="form-check-input check-produto" value="${comb.id_unico}">
+                        </td>
+                        <td class="text-center align-middle p-1">${imgHtml}</td>
+                        <td class="busca-texto align-middle fw-bold">${escapeHTML(comb.orgao)}</td>
+                        <td class="busca-texto align-middle">${escapeHTML(comb.nome_produto)}</td>
+                        <td class="busca-texto align-middle text-muted small">
+                            ${comb.tamanho ? `<span class="badge bg-secondary me-1">Tam: ${escapeHTML(comb.tamanho)}</span>` : ''}
+                            ${escapeHTML(comb.descricao)}
+                        </td>
+                    </tr>
+                `);
+            }
+        });
+    }
+
+    function filtrarModalProdutos() {
+        const buscaTexto = $('#inputBuscaProduto').val().toLowerCase().trim();
+        const palavras = buscaTexto === '' ? [] : buscaTexto.split(/\s+/);
+        $('#tbodyModalProdutos tr').each(function() {
+            const textoLinha = $(this).find('.busca-texto').text().toLowerCase();
+            const corresponde = palavras.every(palavra => textoLinha.includes(palavra));
+            $(this).toggle(corresponde || palavras.length === 0);
+        });
+    }
+
+    function toggleAllModal(source) {
+        const checkboxes = document.querySelectorAll('#tbodyModalProdutos .check-produto');
+        checkboxes.forEach(cb => {
+            if (cb.closest('tr').style.display !== 'none') {
+                cb.checked = source.checked;
+            }
+        });
+    }
+
+    function adicionarProdutosSelecionados() {
+        const selecionados = document.querySelectorAll('#tbodyModalProdutos .check-produto:checked');
+        if(selecionados.length === 0) { 
+            exibirAviso("Selecione pelo menos um produto na lista."); 
+            return; 
+        }
+        
+        selecionados.forEach(function(checkbox) {
+            const idUnicoSelecionado = checkbox.value;
+            const comb = combinacoesDisponiveis.find(c => String(c.id_unico) === String(idUnicoSelecionado));
+            if (comb) {
+                listaProducao.push({
+                    id_unico: comb.id_unico,
+                    processo_id: comb.processo_id,
+                    processo_item_id: comb.processo_item_id,
+                    orgao: comb.orgao,
+                    item_id: comb.item_id,
+                    nome_produto: comb.nome_produto,
+                    descricao: comb.descricao,
+                    tamanho: comb.tamanho,
+                    url_imagem: comb.url_imagem, 
+                    qtd: 0
+                });
+            }
+        });
+        
+        atualizarTabela();
+        $('#modalBuscaProdutos').modal('hide');
+    }
+
+    function removerProducao(index) {
+        listaProducao.splice(index, 1);
+        atualizarTabela();
+    }
+
+    function atualizarTabela() {
+        const tbody = document.querySelector('#tabelaProducao tbody');
+        if(listaProducao.length === 0) {
+            tbody.innerHTML = '<tr id="linhaVazia"><td colspan="6" class="text-center text-muted">Nenhum produto selecionado.</td></tr>';
+            document.getElementById('displayTotalProduzido').innerText = 0;
+            recalcularMeta();
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        let totalProduzido = 0;
+
+        listaProducao.forEach((prod, index) => {
+            totalProduzido += parseInt(prod.qtd) || 0;
+
+            const isPdf = prod.url_imagem && prod.url_imagem.toLowerCase().split('?')[0].endsWith('.pdf');
+            const imgHtml = prod.url_imagem 
+                ? (isPdf 
+                    ? `<div class="text-center border rounded bg-white p-1 shadow-sm d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; cursor: pointer;" onclick="zoomImagem('${prod.url_imagem}', '${escapeHTML(prod.nome_produto)}')"><i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i></div>`
+                    : `<img src="${prod.url_imagem}" class="img-thumbnail rounded" style="width: 45px; height: 45px; object-fit: cover; cursor: pointer;" onclick="zoomImagem('${prod.url_imagem}', '${escapeHTML(prod.nome_produto)}')">`)
+                : `<div class="text-muted d-flex align-items-center justify-content-center border rounded bg-light" style="width: 45px; height: 45px;"><i class="bi bi-camera small"></i></div>`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="text-center align-middle p-1">${imgHtml}</td>
+                    <td class="align-middle fw-bold">
+                        <input type="hidden" name="processos_ids[]" value="${prod.processo_id}">
+                        <input type="hidden" name="processo_item_ids[]" value="${prod.processo_item_id}">
+                        <input type="hidden" name="itens_ids[]" value="${prod.item_id}">
+                        ${escapeHTML(prod.orgao)}
+                    </td>
+                    <td class="align-middle">
+                        ${escapeHTML(prod.nome_produto)}
+                    </td>
+                    <td class="align-middle text-muted small">
+                        ${prod.tamanho ? `<span class="badge bg-secondary me-1">Tam: ${escapeHTML(prod.tamanho)}</span>` : ''}
+                        ${escapeHTML(prod.descricao)}
+                    </td>
+                    <td class="align-middle text-center" style="width: 150px;">
+                        <input type="number" class="form-control text-center fw-bold" name="qtds_produzidas[]" value="${prod.qtd}" min="0" oninput="atualizarQtd(${index}, this)">
+                    </td>
+                    <td class="text-center align-middle" style="width: 80px;">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerProducao(${index})"><i class="bi bi-trash"></i></button>
+                    </td>
+                 </tr>
+            `;
+        });
+        document.getElementById('displayTotalProduzido').innerText = totalProduzido;
+        recalcularMeta();
+    }
+
+    function atualizarQtd(index, input) {
+        listaProducao[index].qtd = parseInt(input.value) || 0;
+        let total = 0;
+        listaProducao.forEach(p => total += p.qtd);
+        document.getElementById('displayTotalProduzido').innerText = total;
+        verificarJustificativa();
+    }
+
+    function recalcularMeta() {
+        const displayMeta = document.getElementById('displayMeta');
+        const inputMeta = document.getElementById('meta_calculada');
+        
+        if(listaProducao.length === 0) {
+            displayMeta.innerText = "0";
+            inputMeta.value = 0; 
+            verificarJustificativa(); 
+            return;
+        }
+
+        let explicacao = "CÁLCULO DE META AUTOMÁTICO:\n==============================================\n\n";
+        if (maquinasDaMalharia.length === 0) {
+            explicacao += "AVISO: A malharia selecionada NÃO possui máquinas no sistema.\nA meta calculada será 0.";
+            displayMeta.innerText = "0"; inputMeta.value = 0; 
+            document.getElementById('textoExplicacaoMeta').innerText = explicacao; 
+            verificarJustificativa(); return;
+        }
+
+        const produtosUnicosIds = [...new Set(listaProducao.map(p => String(p.item_id)))];
+        let usoMaquinario = {};
+        let alertas = [];
+
+        produtosUnicosIds.forEach(itemId => {
+            const dadosItem = todosItens.find(i => String(i.id) === itemId);
+            if(dadosItem) {
+                if(dadosItem.maquinas && dadosItem.maquinas.length > 0) {
+                    dadosItem.maquinas.forEach(maq => {
+                         const idMaq = String(maq.maquinario_id || (maq.maquina && maq.maquina.id));
+                        if(idMaq && idMaq !== 'undefined') {
+                            if(!usoMaquinario[idMaq]) usoMaquinario[idMaq] = [];
+                            usoMaquinario[idMaq].push({ nome: dadosItem.nome, meta: parseFloat(dadosItem.meta_diaria) || 100 });
+                        }
+                    });
+                } else { alertas.push(`O produto '${dadosItem.nome}' NÃO tem máquinas exigidas no cadastro.`); }
+            }
+        });
+        let contagemMalharia = {}; let nomesMaquinas = {};
+        maquinasDaMalharia.forEach(maqFisica => {
+            if(maqFisica.status !== 'indisponivel') {
+                const idMaq = String(maqFisica.maquinario_id || (maqFisica.maquinario && maqFisica.maquinario.id));
+                if (idMaq && idMaq !== 'undefined') {
+                    contagemMalharia[idMaq] = (contagemMalharia[idMaq] || 0) + 1;
+                     if(maqFisica.maquinario) nomesMaquinas[idMaq] = maqFisica.maquinario.nome;
+                }
+            }
+        });
+        let metaTotalGeral = 0; let maquinasCompativeisEncontradas = 0;
+
+        for (const [maqId, qtdFisica] of Object.entries(contagemMalharia)) {
+            if (usoMaquinario[maqId]) {
+                maquinasCompativeisEncontradas++;
+                const produtosQueUsam = usoMaquinario[maqId];
+                const somaMetas = produtosQueUsam.reduce((acc, p) => acc + p.meta, 0);
+                const mediaMetaPorMaquina = somaMetas / produtosQueUsam.length;
+                const subtotal = mediaMetaPorMaquina * qtdFisica;
+                metaTotalGeral += subtotal;
+
+                const nomeDaMaquina = nomesMaquinas[maqId] || `Máquina ID ${maqId}`;
+                explicacao += `>> ${nomeDaMaquina.toUpperCase()}\n   - Quantidade Física na Oficina: ${qtdFisica} un.\n   - Produtos que a utilizam: ${produtosQueUsam.map(p => p.nome).join(' e ')}\n   - Média de Produção: ${mediaMetaPorMaquina.toFixed(2)} por máquina/dia\n   - Subtotal Gerado (${mediaMetaPorMaquina.toFixed(2)} x ${qtdFisica}): ${subtotal.toFixed(2)}\n\n`;
+            }
+        }
+
+        if (maquinasCompativeisEncontradas === 0) alertas.push("A malharia NÃO possui nenhuma máquina compatível para fazer os produtos da tabela.");
+        if (alertas.length > 0) {
+            explicacao += "AVISOS DO SISTEMA:\n";
+            alertas.forEach(a => explicacao += `- ${a}\n`);
+            explicacao += "\n";
+        }
+
+        explicacao += `==============================================\nMETA FINAL DO DIA: ${Math.round(metaTotalGeral)}`;
+        displayMeta.innerText = Math.round(metaTotalGeral);
+        inputMeta.value = Math.round(metaTotalGeral);
+        document.getElementById('explicacao_meta').value = explicacao;
+        document.getElementById('textoExplicacaoMeta').innerText = explicacao;
+
+        verificarJustificativa();
+    }
+
+    function verificarJustificativa() {
+        const isSemProducao = document.getElementById('sem_producao') && document.getElementById('sem_producao').checked;
+        if (isSemProducao) return;
+
+        const meta = parseFloat(document.getElementById('meta_calculada').value) || 0;
+        const totalProduzido = parseInt(document.getElementById('displayTotalProduzido').innerText) || 0;
+        const box = document.getElementById('boxJustificativa');
+        const selectJust = document.getElementById('justificativa_id');
+        const labelJust = document.getElementById('justificativaLabel');
+        if(listaProducao.length === 0) {
+            box.style.display = 'none';
+            selectJust.required = false;
+        } else if(listaProducao.length > 0 && totalProduzido < meta) {
+            box.style.display = 'block';
+            if(totalProduzido === 0) {
+                selectJust.required = false;
+                labelJust.innerHTML = '<i class="bi bi-info-circle"></i> Planejamento de Produção: Quantidade zerada. Justificativa opcional.';
+                box.className = 'mb-3 p-3 bg-info bg-opacity-10 border border-info rounded';
+                labelJust.className = 'form-label fw-bold text-info-emphasis';
+            } else {
+                selectJust.required = true;
+                labelJust.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Meta Não Atingida. Informe o motivo:';
+                box.className = 'mb-3 p-3 bg-warning bg-opacity-10 border border-warning rounded';
+                labelJust.className = 'form-label fw-bold text-warning-emphasis';
+            }
+        } else {
+            box.style.display = 'none';
+            selectJust.required = false; 
+            if (typeof isCarregamentoInicial !== 'undefined') {
+                if (!isCarregamentoInicial) { $(selectJust).val('').trigger('change'); }
+            } else { $(selectJust).val('').trigger('change'); }
+        }
+    }
+
+    function mostrarExplicacaoMeta() { new bootstrap.Modal(document.getElementById('modalMeta')).show(); }
+
+    function validarFormulario(e) {
+        // Validação 1: Sem produtos na tabela
+        const semProducaoCheckbox = document.getElementById('sem_producao');
+        const isSemProducao = semProducaoCheckbox ? semProducaoCheckbox.checked : false;
+        
+        if (!isSemProducao && typeof listaProducao !== 'undefined' && listaProducao.length === 0) {
+            e.preventDefault();
+            exibirAviso("Adicione pelo menos um produto na tabela ou marque o botão de 'Não houve produção' no topo da tela.");
+            return false;
+        }
+
+        // Validação 2: Justificativa "Outros" obriga preencher a Observação
+        const justificativaSelect = document.getElementById('justificativa_id');
+        const boxJustificativa = document.getElementById('boxJustificativa');
+        
+        if (boxJustificativa && boxJustificativa.style.display !== 'none' && justificativaSelect && justificativaSelect.value) {
+            const selectedText = justificativaSelect.options[justificativaSelect.selectedIndex].text.toLowerCase();
+            
+            // Se o texto da justificativa contiver a palavra "outro"
+            if (selectedText.includes('outro')) {
+                const observacaoInput = document.querySelector('textarea[name="observacao"]');
+                if (observacaoInput && observacaoInput.value.trim() === '') {
+                    e.preventDefault();
+                    exibirAviso("Como você selecionou 'Outros' como justificativa, é OBRIGATÓRIO detalhar o motivo no campo de 'Observações Adicionais'.");
+                    observacaoInput.focus();
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+</script>

@@ -1,0 +1,404 @@
+<style>
+    .calendario-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+    .calendario-header { text-align: center; font-weight: bold; padding: 5px; background: #f8f9fa; border-radius: 4px; color: #495057;}
+    .calendario-dia { 
+        border: 1px solid #e9ecef; min-height: 80px; padding: 8px; border-radius: 6px; 
+        display:flex; flex-direction:column; background: #fff; transition: all 0.2s ease-in-out;
+    }
+    .calendario-dia.interativo { cursor: pointer; }
+    .calendario-dia.interativo:hover { background-color: #f1f3f5; border-color: #dee2e6; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .calendario-dia.dia-ativo { border: 2px solid #0d6efd; background-color: #f0f7ff; box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); }
+    .calendario-dia.outro-mes { background-color: #f8f9fa; color: #adb5bd; border-style: dashed; pointer-events: none; }
+    .dia-numero { font-weight: 700; font-size: 1.1em; color: #343a40; }
+    .dia-ativo .dia-numero { color: #0d6efd; }
+    .badge-status { font-size: 0.75rem; padding: 4px; margin-top: auto; text-align: center; border-radius: 4px; font-weight: bold; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+
+    .timer-aviso { font-size: 0.95rem; font-weight: 600; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; padding: 10px 15px; display: inline-flex; align-items: center; gap: 8px; }
+    .timer-aviso-leitura { background-color: #e2e3e5; color: #383d41; border-color: #d6d8db; }
+</style>
+
+<% 
+// ==========================================
+// DATA E LÓGICA DE PRAZOS
+// ==========================================
+const agStr = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+const agoraObj = new Date(agStr);
+const padNum = (n) => String(n).padStart(2, '0');
+const getStrBRT = (d) => `${d.getFullYear()}-${padNum(d.getMonth() + 1)}-${padNum(d.getDate())}`;
+
+const dataHojeBRT = getStrBRT(agoraObj);
+
+const ontemObj = new Date(agoraObj);
+ontemObj.setDate(ontemObj.getDate() - 1);
+const dataOntemBRT = getStrBRT(ontemObj);
+
+const horaAtual = agoraObj.getHours();
+const diaSemanaHoje = agoraObj.getDay(); 
+
+const isHoje = dataBusca === dataHojeBRT;
+const isOntemEditavel = (dataBusca === dataOntemBRT && horaAtual < 12);
+
+let isRetroativoFimSemana = false;
+if (diaSemanaHoje === 1 && horaAtual < 12) {
+    const sextaObj = new Date(agoraObj); sextaObj.setDate(sextaObj.getDate() - 3);
+    const sabadoObj = new Date(agoraObj); sabadoObj.setDate(sabadoObj.getDate() - 2);
+    const domingoObj = new Date(agoraObj); domingoObj.setDate(domingoObj.getDate() - 1);
+    
+    if (dataBusca === getStrBRT(sextaObj) || dataBusca === getStrBRT(sabadoObj) || dataBusca === getStrBRT(domingoObj)) {
+        isRetroativoFimSemana = true;
+    }
+}
+
+const isEditavel = isHoje || isOntemEditavel || isRetroativoFimSemana;
+
+const [anoB, mesB, diaB] = dataBusca.split('-');
+const dataBuscaObj = new Date(anoB, mesB - 1, diaB, 12, 0, 0);
+const isFimDeSemanaBusca = dataBuscaObj.getDay() === 0 || dataBuscaObj.getDay() === 6;
+%>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-printer"></i> Controle Diário de Impressões</h1>
+    <div>
+        <a href="/impressoes" class="btn btn-outline-primary btn-sm"><i class="bi bi-calendar-check"></i> Ir para Hoje</a>
+    </div>
+</div>
+
+<% if (user.nivel < 3) { %>
+    <div class="mb-4">
+        <% if (isEditavel) { %>
+            <div class="timer-aviso w-100 shadow-sm">
+                <i class="bi bi-stopwatch fs-4 text-warning"></i>
+                <div>
+                    Atenção: Você tem até o <b>meio-dia do dia seguinte (ou da segunda-feira)</b> para registrar ou corrigir impressões.<br>
+                    Restam <span id="contadorTempoRestante" class="text-danger fw-bold">--:--:--</span> para o fechamento deste relatório.
+                </div>
+            </div>
+        <% } else { %>
+            <div class="timer-aviso timer-aviso-leitura w-100 shadow-sm">
+                <i class="bi bi-info-circle fs-4 text-secondary"></i>
+                <div>
+                    <strong>Modo de Leitura Ativo</strong><br>
+                    Você está visualizando os registros do dia <%= dataBusca.split('-').reverse().join('/') %>.
+                    Não é possível alterar ou inserir apontamentos nesta data devido ao prazo esgotado.
+                </div>
+            </div>
+        <% } %>
+    </div>
+<% } %>
+
+<div class="row">
+    <!-- CALENDÁRIO -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow-sm border-primary border-top border-3">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+                <button class="btn btn-sm btn-outline-secondary px-3" onclick="mudarMes(-1)"><i class="bi bi-chevron-left"></i> Anterior</button>
+                <h5 class="mb-0 fw-bold text-primary text-uppercase" id="mesAnoAtual"></h5>
+                <button class="btn btn-sm btn-outline-secondary px-3" onclick="mudarMes(1)">Próximo <i class="bi bi-chevron-right"></i></button>
+            </div>
+            <div class="card-body p-2 p-md-3 bg-light">
+                <div id="calendarioGrid" class="calendario-grid"></div>
+            </div>
+            <div class="card-footer bg-white py-2 small text-muted d-flex gap-4 justify-content-center flex-wrap border-top">
+                <span><i class="bi bi-square-fill text-success"></i> Completo / Prod. FDS</span>
+                <span><i class="bi bi-square-fill text-warning"></i> Faltam Máquinas</span>
+                <span><i class="bi bi-square-fill text-danger"></i> Pendente</span>
+                <span><i class="bi bi-square text-secondary"></i> Fim de Semana normal</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTA DE IMPRESSÕES DO DIA -->
+    <div class="col-md-8">
+        <h4 class="text-success mb-3"><i class="bi bi-check-circle-fill"></i> Impressões do Dia <%= dataBusca.split('-').reverse().join('/') %></h4>
+        
+        <% if (impressoes.length === 0) { %>
+            <div class="alert alert-secondary text-center py-4 border-dashed">
+                <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                Nenhuma máquina registrou impressão nesta data.
+            </div>
+        <% } else { %>
+            <div class="row g-3">
+                <% impressoes.forEach(function(imp) { %>
+                    <div class="col-md-12">
+                        <div class="card h-100 shadow-sm border-start border-4 border-primary">
+                            <div class="card-body pb-2">
+                                <div class="d-flex justify-content-between">
+                                    <h5 class="card-title fw-bold text-dark mb-0"><%= imp.maquina ? imp.maquina.nome : 'Máquina Excluída' %></h5>
+                                    <span class="badge bg-light text-dark border">
+                                        <i class="bi bi-person-circle text-primary"></i> <%= imp.usuario ? imp.usuario.nome : 'Desconhecido' %>
+                                    </span>
+                                </div>
+                                <hr class="my-2">
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered text-center align-middle mb-2">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Categoria</th>
+                                                <th>Demanda</th>
+                                                <th>Produto</th>
+                                                <th>Tamanho</th>
+                                                <th>Arquivo</th>
+                                                <th>Modalidade</th>
+                                                <th class="text-success">Qtd</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (imp.itens && imp.itens.length > 0) { %>
+                                                <% let total = 0; imp.itens.forEach(it => { total += it.numero_impressoes; %>
+                                                    <tr>
+                                                        <td><span class="badge bg-secondary"><%= it.categoria %></span></td>
+                                                        <td><%= it.demanda || '-' %></td>
+                                                        <td class="fw-bold"><%= it.produto %></td>
+                                                        <td><%= it.tamanho %></td>
+                                                        <td><%= it.tipo_arquivo %></td>
+                                                        <td><%= it.modalidade %></td>
+                                                        <td class="fw-bold text-success"><%= it.numero_impressoes %></td>
+                                                    </tr>
+                                                <% }); %>
+                                                <tr class="table-active">
+                                                    <td colspan="6" class="text-end fw-bold">TOTAL DO DIA:</td>
+                                                    <td class="fw-bold text-primary fs-6"><%= total %></td>
+                                                </tr>
+                                            <% } else { %>
+                                                <tr><td colspan="7" class="text-muted">Sem itens registrados.</td></tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <% if(imp.observacao) { %>
+                                    <div class="text-muted small border p-2 rounded bg-light mt-2"><i class="bi bi-chat-text"></i> <%= imp.observacao %></div>
+                                <% } %>
+                            </div>
+                            
+                            <% if (user.nivel >= 3 || isEditavel) { %>
+                            <div class="card-footer bg-transparent d-flex justify-content-end gap-2 border-top-0 pt-0">
+                                <a href="/impressoes/<%= imp.id %>/edit" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil-square"></i> Editar
+                                </a>
+                                <% if (user.nivel >= 3) { %>
+                                <form action="/impressoes/<%= imp.id %>/delete" method="POST">
+                                    <!-- AQUI TROCAMOS O CONFIRM PELO MODAL -->
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmarExclusao(this, 'impressao')"><i class="bi bi-trash"></i> Excluir</button>
+                                </form>
+                                <% } %>
+                            </div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- MÁQUINAS SEM REGISTRO NESTA DATA -->
+    <div class="col-md-4">
+        <h4 class="text-secondary mb-3"><i class="bi bi-clock-history"></i> Sem Registro <span class="badge bg-secondary ms-2 fs-6"><%= maquinasPendentes.length %></span></h4>
+        
+        <% if (isFimDeSemanaBusca) { %>
+            <div class="alert alert-info py-2 mb-3 text-center small shadow-sm">
+                <i class="bi bi-info-circle"></i> Fim de semana: Registro Opcional.
+            </div>
+        <% } %>
+
+        <% if (maquinasPendentes.length === 0) { %>
+            <div class="alert alert-success text-center">
+                <i class="bi bi-emoji-sunglasses d-block fs-3 mb-1"></i> Todas as máquinas do sistema já foram registradas nesta data!
+            </div>
+        <% } else { %>
+            <div class="list-group shadow-sm">
+                <% maquinasPendentes.forEach(function(maq) { %>
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center bg-light">
+                        <h6 class="mb-0 text-dark fw-bold"><%= maq.nome %></h6>
+                        <% if (user.nivel >= 3 || isEditavel) { %>
+                            <a href="/impressoes/create?maquina=<%= maq.id %>&data=<%= dataBusca %>" class="btn btn-sm btn-primary rounded-pill shadow-sm">
+                                <i class="bi bi-plus-lg"></i> Registrar
+                            </a>
+                        <% } else { %>
+                            <span class="badge bg-secondary">Apenas Leitura</span>
+                        <% } %>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Modal Confirmação de Exclusão -->
+<div class="modal fade" id="modalConfirmDelete" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle"></i> Confirmação</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3" id="textoConfirmDelete">
+                Tem certeza que deseja excluir?
+            </div>
+            <div class="modal-footer py-1 justify-content-center">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-danger px-3" id="btnConfirmDelete">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script>
+    const resumoRegistros = <%- resumoGeralJSON || '[]' %>;
+    const todasMaquinas = <%- todasMaquinasJSON || '[]' %>;
+    const dataBusca = "<%= dataBusca %>";
+    const userNivel = <%= user.nivel %>;
+    
+    let currentViewDate = new Date(dataBusca + "T12:00:00");
+    const hojeObjJS = new Date(); 
+    hojeObjJS.setHours(23,59,59,999);
+
+    function pad(n) { return n < 10 ? '0'+n : n; }
+    function toDateStr(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+
+    const registrosMap = {};
+    resumoRegistros.forEach(r => {
+        let dataLimpa = r.data_registro ? r.data_registro.substring(0, 10) : null;
+        if (dataLimpa) {
+            if (!registrosMap[dataLimpa]) registrosMap[dataLimpa] = new Set();
+            registrosMap[dataLimpa].add(String(r.maquina_id));
+        }
+    });
+
+    // Lógica do Modal de Exclusão
+    let formToDelete = null;
+    function confirmarExclusao(btn, tipo) {
+        formToDelete = btn.closest('form');
+        document.getElementById('textoConfirmDelete').innerText = 'Excluir este apontamento de forma permanente?';
+        new bootstrap.Modal(document.getElementById('modalConfirmDelete')).show();
+    }
+    document.getElementById('btnConfirmDelete').addEventListener('click', function() {
+        if(formToDelete) formToDelete.submit();
+    });
+
+    function getExpectedMaquinas(dateStr) {
+        return todasMaquinas.filter(m => {
+            const dataCriacao = m.criado_em ? m.criado_em.split('T')[0] : '2000-01-01';
+            return dataCriacao <= dateStr;
+        }).length;
+    }
+
+    function mudarMes(delta) {
+        let currentMonth = currentViewDate.getMonth();
+        currentViewDate.setMonth(currentMonth + delta, 1); 
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const currentMonth = currentViewDate.getMonth();
+        const currentYear = currentViewDate.getFullYear();
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const lastDay = new Date(currentYear, currentMonth + 1, 0);
+        const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        
+        document.getElementById('mesAnoAtual').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+        const grid = document.getElementById('calendarioGrid');
+        grid.innerHTML = '';
+        
+        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        diasSemana.forEach(d => {
+            let el = document.createElement('div');
+            el.className = 'calendario-header'; el.innerText = d;
+            grid.appendChild(el);
+        });
+        
+        let startDayWeek = firstDay.getDay(); 
+        for(let i = 0; i < startDayWeek; i++) {
+            let el = document.createElement('div');
+            el.className = 'calendario-dia outro-mes';
+            grid.appendChild(el);
+        }
+
+        for(let day = 1; day <= lastDay.getDate(); day++) {
+            let loopDate = new Date(currentYear, currentMonth, day, 12, 0, 0);
+            let loopDateStr = toDateStr(loopDate);
+            
+            let el = document.createElement('div');
+            el.className = 'calendario-dia interativo';
+            if (loopDateStr === dataBusca) el.classList.add('dia-ativo');
+            el.onclick = () => { window.location.href = '/impressoes?data=' + loopDateStr; };
+
+            let numDiv = document.createElement('div');
+            numDiv.className = 'dia-numero'; numDiv.innerText = day;
+            el.appendChild(numDiv);
+
+            let qtdRegistros = registrosMap[loopDateStr] ? registrosMap[loopDateStr].size : 0;
+            
+            let expectedMaquinas = getExpectedMaquinas(loopDateStr);
+            let isWeekend = loopDate.getDay() === 0 || loopDate.getDay() === 6;
+
+            if (isWeekend) {
+                expectedMaquinas = 0;
+            }
+
+            let statusBadge = document.createElement('div');
+            statusBadge.className = 'badge-status text-white mt-1 shadow-sm';
+            
+            if (qtdRegistros === 0) {
+                if (expectedMaquinas > 0 && loopDate <= hojeObjJS) {
+                    statusBadge.classList.add('bg-danger');
+                    statusBadge.innerText = `Faltam ${expectedMaquinas}`;
+                } else {
+                    statusBadge.style.display = 'none'; 
+                }
+            } else {
+                if (expectedMaquinas === 0) {
+                    statusBadge.classList.add('bg-success');
+                    statusBadge.innerText = isWeekend ? 'Prod. no FDS' : 'Completo';
+                } else if (qtdRegistros >= expectedMaquinas) {
+                    statusBadge.classList.add('bg-success');
+                    statusBadge.innerText = 'Completo';
+                } else {
+                    statusBadge.classList.add('bg-warning', 'text-dark');
+                    statusBadge.innerText = `Faltam ${expectedMaquinas - qtdRegistros}`;
+                }
+            }
+            
+            if(statusBadge.style.display !== 'none') el.appendChild(statusBadge);
+            grid.appendChild(el);
+        }
+    }
+    document.addEventListener('DOMContentLoaded', renderCalendar);
+
+    if (userNivel < 3) {
+        const contadorEl = document.getElementById('contadorTempoRestante');
+        if (contadorEl) { 
+            const partesData = "<%= dataBusca %>".split('-');
+            const dataLimite = new Date(partesData[0], partesData[1] - 1, partesData[2]);
+            const diaDaSemanaBusca = dataLimite.getDay(); 
+
+            if (diaDaSemanaBusca === 5) { 
+                dataLimite.setDate(dataLimite.getDate() + 3);
+            } else if (diaDaSemanaBusca === 6) { 
+                dataLimite.setDate(dataLimite.getDate() + 2);
+            } else {
+                dataLimite.setDate(dataLimite.getDate() + 1);
+            }
+            dataLimite.setHours(12, 0, 0, 0);
+
+            function atualizarContagemRegressiva() {
+                const agora = new Date();
+                const diferenca = dataLimite - agora;
+
+                if (diferenca > 0) {
+                    const horas = Math.floor(diferenca / (1000 * 60 * 60));
+                    const minutos = Math.floor((diferenca / 1000 / 60) % 60);
+                    const segundos = Math.floor((diferenca / 1000) % 60);
+                    
+                    contadorEl.innerText = `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+                } else {
+                    contadorEl.innerText = "Tempo Esgotado!";
+                }
+            }
+            setInterval(atualizarContagemRegressiva, 1000);
+            atualizarContagemRegressiva();
+        }
+    }
+</script>

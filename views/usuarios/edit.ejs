@@ -1,0 +1,64 @@
+<div class="container mt-4">
+    <h2>Editar Usuário: <%= usuario.nome %></h2>
+
+    <div class="card shadow p-4 mt-3" style="max-width: 600px;">
+        <form action="/usuarios/<%= usuario.id %>/editar" method="POST">
+            
+            <div class="mb-3">
+                <label>Status</label>
+                <select name="status" class="form-select" required>
+                    <option value="pendente" <%= usuario.status === 'pendente' ? 'selected' : '' %>>Pendente (Bloqueado)</option>
+                    <option value="aprovado" <%= usuario.status === 'aprovado' ? 'selected' : '' %>>Aprovado (Liberado)</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label>Cargo</label>
+                <select name="cargo" id="cargoSelect" class="form-select" required onchange="toggleMalharias()">
+                    <option value="" disabled <%= !usuario.cargo ? 'selected' : '' %>>Selecione um cargo</option>
+                    <option value="monitor" <%= usuario.cargo === 'monitor' ? 'selected' : '' %>>Monitor</option>
+                    
+                    <option value="controlador" <%= usuario.cargo === 'controlador' ? 'selected' : '' %>>Controlador de Insumos</option>
+                    
+                    <option value="coordenador" <%= usuario.cargo === 'coordenador' ? 'selected' : '' %>>Coordenador</option>
+                    <option value="gestor" <%= usuario.cargo === 'gestor' ? 'selected' : '' %>>Gestor</option>
+                    <option value="admin" <%= usuario.cargo === 'admin' ? 'selected' : '' %>>Admin</option>
+                </select>
+            </div>
+
+            <div id="malhariasArea" class="mb-3 p-3 border rounded bg-light" style="display: none;">
+                <label class="fw-bold mb-2">Vincular Malharias (Acesso do Monitor)</label>
+                <% if (malharias && malharias.length > 0) { %>
+                    <% malharias.forEach(m => { %>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="malharias" value="<%= m.id %>" id="malharia_<%= m.id %>"
+                            <%= malhariasVinculadas.includes(m.id) ? 'checked' : '' %>>
+                            <label class="form-check-label" for="malharia_<%= m.id %>">
+                                <%= m.nome %>
+                            </label>
+                        </div>
+                    <% }) %>
+                <% } else { %>
+                    <p class="text-muted small">Nenhuma malharia cadastrada no sistema.</p>
+                <% } %>
+            </div>
+
+            <button type="submit" class="btn btn-success">Salvar Permissões</button>
+            <a href="/usuarios" class="btn btn-secondary">Voltar</a>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleMalharias() {
+        const cargo = document.getElementById('cargoSelect').value;
+        const malhariasArea = document.getElementById('malhariasArea');
+        if (cargo === 'monitor') {
+            malhariasArea.style.display = 'block';
+        } else {
+            malhariasArea.style.display = 'none';
+        }
+    }
+    // Roda ao iniciar a página para checar o estado atual
+    toggleMalharias();
+</script>

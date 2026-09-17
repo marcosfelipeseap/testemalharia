@@ -1,0 +1,365 @@
+<!-- =========================================================
+     PAGE 1 — DIÁRIO DE PRODUÇÃO
+     ========================================================= -->
+<div id="page1" class="page active">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+    <h2 id="page1Title" style="margin-bottom:0;">
+      Diário de Produção
+    </h2>
+
+    <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap;">
+      <button class="btn-notif btn-notif-pri" onclick="generateDiarioRelatorio()" style="padding:8px 15px; font-size:13px; height:37px; border: none; background: #25D366; color: #fff; border-radius: 6px; font-weight: 600; cursor: pointer;">
+        <i class="bi bi-whatsapp" style="margin-right:5px;"></i> Relatório
+      </button>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Data de Acompanhamento</label>
+        <input type="date" id="dailyDate" onchange="renderPage1()" style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-main);">
+      </div>
+    </div>
+  </div>
+
+  <div id="dailySummary" class="p1-summary-row" style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;"></div>
+  <div id="dailyCards" class="cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;"></div>
+</div>
+
+<script>
+function renderPage1() {
+    let val = document.getElementById('dailyDate').value;
+    if (!val) return;
+
+    let sDate = val.split('-').reverse().join('/');
+    let data = rawData.filter(r => r.data === sDate);
+    let feriadosHoje = feriadosData.filter(f => f.data === sDate);
+
+    let cont = document.getElementById('dailyCards');
+    let summaryCont = document.getElementById('dailySummary');
+
+    cont.innerHTML = '';
+    summaryCont.innerHTML = '';
+
+    let allOficinas = [...new Set(rawData.map(r => r.oficina))].sort();
+    let groups = {};
+
+    data.forEach(r => {
+        if (!groups[r.oficina]) groups[r.oficina] = { prod: 0, items: [] };
+        groups[r.oficina].prod += r.producaoDia;
+        groups[r.oficina].items.push(r);
+    });
+
+    let listOk = [], listFail = [], listInsumo = [], listMissing = [], listFeriado = [];
+
+    Object.keys(groups).forEach(of => {
+        let g = groups[of];
+        let validItems = g.items.filter(r => !(r.producaoDia === 0 && isSemInsumo(r.justificativa)));
+        g.meta = validItems.length > 0 ? calculateDynamicMeta(validItems) : 0;
+        let hasInsumoIssue = g.items.some(j => isSemInsumo(j.justificativa));
+
+        if (g.prod > 0 && g.prod >= g.meta) listOk.push(of);
+        else if (g.prod === 0 && hasInsumoIssue) listInsumo.push(of);
+        else listFail.push(of);
+    });
+
+    let selDateObj = new Date(val.split('-')[0], val.split('-')[1] - 1, val.split('-')[2]);
+    let isWeekendDay = selDateObj.getDay() === 0 || selDateObj.getDay() === 6;
+    let presentOficinas = Object.keys(groups);
+    let maxDates = {};
+
+    rawData.forEach(r => {
+        if (!maxDates[r.oficina] || r.dateObj > maxDates[r.oficina]) maxDates[r.oficina] = r.dateObj;
+    });
+
+    allOficinas.forEach(of => {
+        if (!presentOficinas.includes(of)) {
+            let fGlobal = feriadosHoje.find(f => f.oficina === 'Todas');
+            let fSpecific = feriadosHoje.find(f => f.oficina === of);
+
+            if (fGlobal || fSpecific) {
+                listFeriado.push({
+                    oficina: of,
+                    descricao: fGlobal ? fGlobal.descricao : fSpecific.descricao
+                });
+            } else if (!isWeekendDay) {
+                if ((of === "GALPÃO 3.1" || of === "GALPÃO 3.2") && selDateObj > maxDates[of]) {} 
+                else listMissing.push(of);
+            }
+        }
+    });
+
+    document.getElementById('page1Title').innerHTML = `Diário de Produção ${isWeekendDay ? `<span style="font-size:14px; background:var(--warning-bg); color:var(--warning-text-dark); padding:4px 8px; border-radius:4px; margin-left:10px; font-weight:600;">Fim de Semana</span>` : ''}`;
+
+    listOk.sort(); listInsumo.sort(); listFail.sort(); listMissing.sort();
+    listFeriado.sort((a, b) => a.oficina.localeCompare(b.oficina));
+
+    summaryCont.innerHTML = `
+        <div class="p1-stat-card" style="border-left:5px solid var(--success-text); background: var(--surface); padding: 15px; border-radius: 8px; flex: 1; min-width: 140px; box-shadow: var(--shadow);">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Satisfatório</div>
+            <div class="p1-stat-val" style="color:var(--success-text); font-size: 24px; font-weight: bold;">${listOk.length}</div>
+        </div>
+        <div class="p1-stat-card" style="border-left:5px solid var(--warning-text-dark); background: var(--surface); padding: 15px; border-radius: 8px; flex: 1; min-width: 140px; box-shadow: var(--shadow);">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Sem Insumo</div>
+            <div class="p1-stat-val" style="color:var(--warning-text-dark); font-size: 24px; font-weight: bold;">${listInsumo.length}</div>
+        </div>
+        <div class="p1-stat-card" style="border-left:5px solid var(--danger-text); background: var(--surface); padding: 15px; border-radius: 8px; flex: 1; min-width: 140px; box-shadow: var(--shadow);">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Insuficiente</div>
+            <div class="p1-stat-val" style="color:var(--danger-text); font-size: 24px; font-weight: bold;">${listFail.length}</div>
+        </div>
+        <div class="p1-stat-card" style="border-left:5px solid #00ACC1; background: var(--surface); padding: 15px; border-radius: 8px; flex: 1; min-width: 140px; box-shadow: var(--shadow);">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Feriado</div>
+            <div class="p1-stat-val" style="color:#00ACC1; font-size: 24px; font-weight: bold;">${listFeriado.length}</div>
+        </div>
+        <div class="p1-stat-card" style="border-left:5px solid var(--neutral-text); background: var(--surface); padding: 15px; border-radius: 8px; flex: 1; min-width: 140px; box-shadow: var(--shadow);">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Não Informado</div>
+            <div class="p1-stat-val" style="color:var(--neutral-text); font-size: 24px; font-weight: bold;">${listMissing.length}</div>
+        </div>
+    `;
+
+    if (!listOk.length && !listInsumo.length && !listFail.length && !listMissing.length && !listFeriado.length) {
+        cont.innerHTML = `<div style="color:var(--text-muted)">Sem registros.</div>`;
+        return;
+    }
+
+    let presentSorted = [...listOk, ...listInsumo, ...listFail];
+
+    presentSorted.forEach(of => {
+        let g = groups[of];
+        let bateu = g.prod > 0 && g.prod >= g.meta;
+        let isInsumo = listInsumo.includes(of);
+
+        let itemsHtml = g.items.map(i => {
+            if (i.item === 'Nenhum') return ''; 
+            let tagsHtml = '';
+            if (i.tamanho) tagsHtml += `<span style="background:var(--primary-light); color:var(--primary); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Tam: ${i.tamanho}</span>`;
+            if (i.processoNome && i.processoNome !== '-') tagsHtml += `<span style="background:var(--neutral-bg); color:var(--neutral-text); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Órgão: ${i.processoNome}</span>`;
+
+            return `
+                <div class="item-row" style="display: flex; flex-direction: column; padding: 10px 0; border-bottom: 1px dashed var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="font-size: 13px;"><b>${i.item}</b> <span style="color:var(--text-muted);">(${i.tipo})</span></div>
+                        <div style="font-size: 14px; font-weight: 700; color:var(--text-main);">${i.producaoDia}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                        ${tagsHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        let infoMaq = g.items[0].maquinas || '?';
+        let infoInt = g.items[0].internos || '?';
+        let uniqJust = [...new Set(g.items.map(i => i.justificativa))].filter(j => j && j.trim() !== "");
+        let uniqObs = [...new Set(g.items.map(i => i.observacao))].filter(o => o && o.trim() !== "");
+        let perc = g.meta > 0 ? Math.round((g.prod / g.meta) * 100) : 0;
+        if (g.meta === 0 && isInsumo) perc = 0;
+
+        let statusText = 'INSUFICIENTE'; let statusColor = 'var(--danger-bg)'; let statusTextColor = 'var(--danger-text)';
+        if (bateu) { statusText = 'SATISFATÓRIO'; statusColor = 'var(--success-bg)'; statusTextColor = 'var(--success-text)'; } 
+        else if (isInsumo) { statusText = 'SEM INSUMO'; statusColor = 'var(--warning-bg)'; statusTextColor = 'var(--warning-text-dark)'; }
+
+        let card = document.createElement('div');
+        card.className = 'card';
+        card.style.background = 'var(--surface)'; card.style.borderRadius = '12px'; card.style.overflow = 'hidden'; card.style.boxShadow = 'var(--shadow)'; card.style.border = 'var(--card-border)';
+
+        let cardHtml = `
+            <div class="card-header" style="padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--primary-light);">
+                <div style="display:flex; flex-direction:column; justify-content:center;">
+                    <span style="font-weight:700; color:var(--primary); font-size: 16px;">${of}</span>
+                    <div style="font-size:11px; color:var(--text-muted); font-weight:500; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                        <span>Máquinas: ${infoMaq}</span><span>Internos: ${infoInt}</span>
+                    </div>
+                </div>
+                <span style="font-size:12px; padding:6px 12px; background: ${statusColor}; color: ${statusTextColor}; border-radius: 20px; font-weight: bold; letter-spacing:0.5px;">${statusText}</span>
+            </div>
+            
+            <div class="card-body" style="padding:15px">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:flex-end;">
+                    <div>
+                        <small style="font-weight:600; color:var(--text-muted); display: block;">PRODUÇÃO</small>
+                        <div style="font-size:28px; font-weight:700; line-height:1.1; color:var(--text-main);">${g.prod}</div>
+                        <small style="font-weight:600; color:var(--text-muted);">PERFORMANCE</small>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="color:var(--text-muted); display: block; font-weight: 600;">META</small>
+                        <div style="font-size:20px; color:var(--text-muted); font-weight: bold;">${g.meta}</div>
+                        <div style="font-size:16px; font-weight:900; color: ${statusTextColor};">${perc}%</div>
+                    </div>
+                </div>
+        `;
+
+        if (itemsHtml !== '') cardHtml += `<div style="background:var(--bg-body); padding:10px 15px; border-radius:8px; margin-bottom:10px;">${itemsHtml}</div>`;
+
+        if (uniqJust.length > 0 || uniqObs.length > 0) {
+            let infoBg = !bateu ? 'var(--danger-bg)' : 'var(--neutral-bg)';
+            let infoBorder = !bateu ? 'var(--danger-text)' : 'var(--border)';
+            let infoText = !bateu ? 'var(--danger-text)' : 'var(--text-muted)';
+            
+            cardHtml += `<div style="border:1px solid ${infoBorder}; background: ${infoBg}; border-radius:8px; padding:10px; font-size:12px; margin-top:10px; color:${infoText};">`;
+            if (uniqJust.length > 0) cardHtml += `<div style="margin-bottom: ${uniqObs.length > 0 ? '6px' : '0'}"><span style="font-weight:700;">Justificativa:</span> ${uniqJust.join(', ')}</div>`;
+            if (uniqObs.length > 0) cardHtml += `<div><span style="font-weight:700; color:var(--text-main);">Obs:</span> <span style="color:var(--text-muted);">${uniqObs.join(' | ')}</span></div>`;
+            cardHtml += `</div>`;
+        }
+        cardHtml += `</div>`;
+        card.innerHTML = cardHtml;
+        cont.appendChild(card);
+    });
+
+    listFeriado.forEach(f => {
+        let card = document.createElement('div');
+        card.className = 'card';
+        card.style.background = 'var(--surface)'; card.style.borderRadius = '12px'; card.style.overflow = 'hidden'; card.style.boxShadow = 'var(--shadow)'; card.style.border = 'var(--card-border)';
+        card.innerHTML = `
+            <div class="card-header" style="background:#E0F7FA; padding: 15px; border-bottom:1px solid #B2EBF2; display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; flex-direction:column; justify-content:center;">
+                    <span style="font-weight:700; color:#00838F; font-size: 16px;">${f.oficina}</span>
+                    <div style="font-size:11px; color:#00ACC1; font-weight:500; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                        <span>Máquinas: N/A</span><span>Internos: N/A</span>
+                    </div>
+                </div>
+                <span style="font-size:12px; padding:6px 12px; background: #00ACC1; color: #FFFFFF; border-radius: 20px; font-weight: bold; letter-spacing:0.5px;">FERIADO</span>
+            </div>
+            <div class="card-body" style="padding:15px; opacity:0.8;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                    <div>
+                        <small style="font-weight:600; color:var(--text-muted); display: block;">PRODUÇÃO</small>
+                        <div style="font-size:28px; font-weight:700; line-height:1.1; color:var(--text-muted);">0</div>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="color:var(--text-muted); display: block; font-weight: 600;">META</small>
+                        <div style="font-size:20px; color:var(--text-muted); font-weight: bold;">?</div>
+                    </div>
+                </div>
+                <div style="border:1px solid #B2EBF2; background: #E0F7FA; border-radius:8px; padding:10px; font-size:12px; margin-top:15px; color:#00838F;">
+                    <span style="font-weight:700;">Motivo:</span> ${f.descricao}
+                </div>
+            </div>
+        `;
+        cont.appendChild(card);
+    });
+
+    listMissing.forEach(of => {
+        let card = document.createElement('div');
+        card.className = 'card';
+        card.style.background = 'var(--surface)'; card.style.borderRadius = '12px'; card.style.overflow = 'hidden'; card.style.boxShadow = 'var(--shadow)'; card.style.border = 'var(--card-border)'; card.style.opacity = '0.7';
+        card.innerHTML = `
+            <div class="card-header" style="background:var(--neutral-bg); padding: 15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; flex-direction:column; justify-content:center;">
+                    <span style="font-weight:700; color:var(--text-muted); font-size: 16px;">${of}</span>
+                    <div style="font-size:11px; color:var(--text-muted); font-weight:500; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                        <span>Máquinas: N/A</span><span>Internos: N/A</span>
+                    </div>
+                </div>
+                <span style="font-size:12px; padding:6px 12px; background: var(--border); color: var(--text-muted); border-radius: 20px; font-weight: bold; letter-spacing:0.5px;">NÃO INFORMADO</span>
+            </div>
+            <div class="card-body" style="padding:15px; opacity:0.6;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                    <div>
+                        <small style="font-weight:600; color:var(--text-muted); display: block;">PRODUÇÃO</small>
+                        <div style="font-size:28px; font-weight:700; line-height:1.1; color:var(--text-muted);">0</div>
+                    </div>
+                    <div style="text-align:right">
+                        <small style="color:var(--text-muted); display: block; font-weight: 600;">META</small>
+                        <div style="font-size:20px; color:var(--text-muted); font-weight: bold;">?</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        cont.appendChild(card);
+    });
+}
+
+function generateDiarioRelatorio() {
+    let val = document.getElementById('dailyDate').value;
+    if (!val) return;
+
+    let sDate = val.split('-').reverse().join('/');
+    let data = rawData.filter(r => r.data === sDate);
+    let feriadosHoje = feriadosData.filter(f => f.data === sDate);
+    let allOficinas = [...new Set(rawData.map(r => r.oficina))].sort();
+    let groups = {};
+
+    data.forEach(r => {
+        if (!groups[r.oficina]) groups[r.oficina] = { prod: 0, items: [] };
+        groups[r.oficina].prod += r.producaoDia;
+        groups[r.oficina].items.push(r);
+    });
+
+    let listOk = [], listFail = [], listInsumo = [], listMissing = [], listFeriado = [];
+
+    Object.keys(groups).forEach(of => {
+        let g = groups[of];
+        let validItems = g.items.filter(r => !(r.producaoDia === 0 && isSemInsumo(r.justificativa)));
+        g.meta = validItems.length > 0 ? calculateDynamicMeta(validItems) : 0;
+        let hasInsumoIssue = g.items.some(j => isSemInsumo(j.justificativa));
+
+        if (g.prod > 0 && g.prod >= g.meta) listOk.push(of);
+        else if (g.prod === 0 && hasInsumoIssue) listInsumo.push(of);
+        else listFail.push(of);
+    });
+
+    let selDateObj = new Date(val.split('-')[0], val.split('-')[1] - 1, val.split('-')[2]);
+    let isWeekendDay = selDateObj.getDay() === 0 || selDateObj.getDay() === 6;
+    let presentOficinas = Object.keys(groups);
+    let maxDates = {};
+
+    rawData.forEach(r => { if (!maxDates[r.oficina] || r.dateObj > maxDates[r.oficina]) maxDates[r.oficina] = r.dateObj; });
+
+    allOficinas.forEach(of => {
+        if (!presentOficinas.includes(of)) {
+            let fGlobal = feriadosHoje.find(f => f.oficina === 'Todas');
+            let fSpecific = feriadosHoje.find(f => f.oficina === of);
+            if (fGlobal || fSpecific) listFeriado.push({ oficina: of, descricao: fGlobal ? fGlobal.descricao : fSpecific.descricao });
+            else if (!isWeekendDay) { if ((of === "GALPÃO 3.1" || of === "GALPÃO 3.2") && selDateObj > maxDates[of]) {} else listMissing.push(of); }
+        }
+    });
+
+    listOk.sort(); listInsumo.sort(); listFail.sort(); listMissing.sort(); listFeriado.sort((a, b) => a.oficina.localeCompare(b.oficina));
+
+    let text = `*📊 DIÁRIO DE PRODUÇÃO - ${sDate}*\n`;
+    if (isWeekendDay) text += `*(Fim de Semana)*\n`;
+
+    text += `\n*Resumo:*\n✅ Satisfatório: ${listOk.length}\n⚠️ Sem Insumo: ${listInsumo.length}\n❌ Insuficiente: ${listFail.length}\n🏖️ Feriado: ${listFeriado.length}\n⚪ Não Informado: ${listMissing.length}\n\n*--- DETALHAMENTO ---*\n\n`;
+
+    let presentSorted = [...listOk, ...listInsumo, ...listFail];
+    presentSorted.forEach(of => {
+        let g = groups[of];
+        let bateu = g.prod > 0 && g.prod >= g.meta;
+        let isInsumo = listInsumo.includes(of);
+        let statusText = bateu ? '✅ SATISFATÓRIO' : (isInsumo ? '⚠️ SEM INSUMO' : '❌ INSUFICIENTE');
+        let perc = g.meta > 0 ? Math.round((g.prod / g.meta) * 100) : (isInsumo ? 0 : 100);
+
+        text += `🏢 *${of}*\nMáquinas: ${g.items[0].maquinas || '?'} | Internos: ${g.items[0].internos || '?'}\nStatus: ${statusText}\nProdução: ${g.prod} / Meta: ${g.meta} (${perc}%)\n`;
+
+        g.items.forEach(i => {
+            if(i.item !== 'Nenhum') {
+                let infoExtra = [];
+                if(i.processoNome && i.processoNome !== '-') infoExtra.push(`Órgão: ${i.processoNome}`);
+                if(i.tamanho) infoExtra.push(`Tam: ${i.tamanho}`);
+                text += `- ${i.producaoDia}x ${i.item} (${i.tipo})${infoExtra.length > 0 ? ` [${infoExtra.join(' | ')}]` : ''}\n`;
+            }
+        });
+
+        let uniqJust = [...new Set(g.items.map(i => i.justificativa))].filter(j => j && j.trim() !== "");
+        let uniqObs = [...new Set(g.items.map(i => i.observacao))].filter(o => o && o.trim() !== "");
+
+        if (uniqJust.length > 0) text += `Justificativa: ${uniqJust.join(', ')}\n`;
+        else if (!bateu) text += `Justificativa: Não informado\n`;
+        
+        if (uniqObs.length > 0) text += `Obs: ${uniqObs.join(' | ')}\n`;
+        text += `\n`;
+    });
+
+    if (listFeriado.length > 0) {
+        text += `*🏖️ FERIADOS / RECESSOS:*\n`;
+        listFeriado.forEach(f => { text += `- ${f.oficina} (${f.descricao})\n`; });
+        text += `\n`;
+    }
+
+    if (listMissing.length > 0) {
+        text += `*⚪ NÃO INFORMADOS:*\n`;
+        listMissing.forEach(of => { text += `- ${of}\n`; });
+    }
+
+    if (typeof openWhatsModal === 'function') openWhatsModal(text.trim());
+    else window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text.trim())}`, '_blank');
+}
+</script>

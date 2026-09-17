@@ -1,0 +1,266 @@
+<!-- =========================================================
+     PAGE 3 — DESEMPENHO (META X PRODUÇÃO)
+     ========================================================= -->
+<div id="page2" class="page">
+  <h2>Desempenho (Meta x Produção)</h2>
+  <p style="font-size:13px; color:var(--text-muted)">Selecione as oficinas abaixo para visualizar os gráficos comparativos detalhados.</p>
+  <div id="oficinaChips" class="chip-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 25px;"></div>
+  <div id="chartsArea" style="display: flex; flex-direction: column; gap: 20px;"></div>
+</div>
+
+<script>
+  function setupChips() {
+    let dates = typeof getFilterDates === 'function' ? getFilterDates() : { start: new Date(0), end: new Date() };
+    let filtered = rawData.filter(r => r.dateObj >= dates.start && r.dateObj <= dates.end);
+    let cont = document.getElementById('oficinaChips');
+    if (!cont) return;
+    cont.innerHTML = '';
+    
+    let list = [...new Set(filtered.map(r => r.oficina))].sort();
+    selectedOficinas = selectedOficinas.filter(o => list.includes(o));
+    
+    if (list.length === 0) { 
+      cont.innerHTML = '<span style="font-size:12px; color:var(--text-muted)">Nenhuma oficina neste período.</span>'; 
+      return;
+    }
+    
+    list.forEach(of => {
+      let c = document.createElement('div');
+      c.className = 'chip'; 
+      c.style.padding = '8px 16px'; c.style.borderRadius = '20px'; c.style.border = '1px solid var(--border)'; c.style.background = 'var(--surface)'; c.style.cursor = 'pointer'; c.style.fontSize = '13px'; c.style.color = 'var(--text-muted)'; c.style.transition = '0.2s';
+      
+      if (selectedOficinas.includes(of)) {
+          c.classList.add('selected');
+          c.style.background = 'var(--primary)'; c.style.color = '#fff'; c.style.borderColor = 'var(--primary)';
+      }
+
+      c.innerText = of;
+      c.onclick = () => {
+        if (selectedOficinas.includes(of)) { 
+          selectedOficinas = selectedOficinas.filter(x => x !== of); 
+          c.classList.remove('selected'); 
+          c.style.background = 'var(--surface)'; c.style.color = 'var(--text-muted)'; c.style.borderColor = 'var(--border)';
+        } else { 
+          selectedOficinas.push(of); 
+          c.classList.add('selected'); 
+          c.style.background = 'var(--primary)'; c.style.color = '#fff'; c.style.borderColor = 'var(--primary)';
+        }
+        renderPage2();
+      };
+      cont.appendChild(c);
+    });
+    
+    let page2 = document.getElementById('page2');
+    if (page2 && page2.classList.contains('active')) renderPage2();
+  }
+
+  function renderPage2() {
+    let area = document.getElementById('chartsArea'); 
+    if (!area) return;
+    area.innerHTML = ''; 
+    activeCharts = [];
+    
+    if (selectedOficinas.length === 0) {
+        area.innerHTML = '<div style="text-align:center; padding: 40px; color: var(--text-muted); background: var(--surface); border-radius: 12px; border: var(--card-border);">Selecione ao menos uma oficina acima para exibir os gráficos de desempenho.</div>';
+        return;
+    }
+
+    let datesFilter = typeof getFilterDates === 'function' ? getFilterDates() : { start: new Date(0), end: new Date() };
+    let filtered = rawData.filter(r => r.dateObj >= datesFilter.start && r.dateObj <= datesFilter.end);
+    let dates = [...new Set(filtered.map(r => r.data))].sort((a,b) => { 
+      let da = a.split('/'), db = b.split('/'); 
+      return new Date(da[2], da[1]-1, da[0]) - new Date(db[2], db[1]-1, db[0]); 
+    });
+    
+    let displayOrder = selectedOficinas.slice().reverse();
+    window.tempMissingData = {}; 
+    window.tempInsumoData = {}; 
+
+    displayOrder.forEach((of) => {
+      // Utiliza a função global com validação de feriados a partir do primeiro registro
+      let missingDates = typeof getMissingBusinessDaysCustom === 'function' ? getMissingBusinessDaysCustom(of, rawData) : [];
+      window.tempMissingData[of] = missingDates; 
+
+      let dayRecords = filtered.filter(x => x.oficina === of);
+      let insumoRecords = dayRecords.filter(r => typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa) && r.producaoDia === 0);
+      let insumoDatesSet = new Set(insumoRecords.map(r => `${r.data} (${daysOfWeek[r.dateObj.getDay()]})`));
+      let insumoDaysList = [...insumoDatesSet];
+      window.tempInsumoData[of] = insumoDaysList;
+
+      let totalProd = dayRecords.reduce((a, b) => a + b.producaoDia, 0);
+      
+      let daysMap = {};
+      dayRecords.forEach(r => { 
+        if (!daysMap[r.data]) daysMap[r.data] = []; 
+        daysMap[r.data].push(r); 
+      });
+      
+      let totalMeta = 0;
+      Object.keys(daysMap).forEach(dateStr => {
+          let rArr = daysMap[dateStr];
+          let dObj = rArr[0].dateObj;
+          let recessStart = new Date(2025, 11, 23); 
+          let recessEnd = new Date(2026, 0, 2);     
+          if (dObj >= recessStart && dObj <= recessEnd) return;
+          if (typeof isFeriado === 'function' && isFeriado(dateStr, of)) return;
+
+          let validRecords = rArr.filter(r => !(r.producaoDia === 0 && typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa)));
+          if (validRecords.length > 0 && typeof calculateDynamicMeta === 'function') {
+            totalMeta += calculateDynamicMeta(validRecords);
+          }
+      });
+
+      let perfPerc = totalMeta > 0 ? Math.round((totalProd / totalMeta) * 100) : 0;
+      if (totalMeta === 0 && totalProd > 0) perfPerc = 100; 
+      let perfClass = perfPerc >= 75 ? 'perf-green' : 'perf-red';
+
+      let refMetaRecord = filtered.find(r => r.oficina === of && r.metaOficina > 0);
+      let refMeta = refMetaRecord ? refMetaRecord.metaOficina : 0;
+      
+      let div = document.createElement('div'); 
+      div.className = 'chart-card';
+      div.style.background = 'var(--surface)'; div.style.padding = '20px'; div.style.borderRadius = '12px'; div.style.border = 'var(--card-border)'; div.style.boxShadow = 'var(--shadow)';
+      div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin:0; font-size:20px; align-self:center; color:var(--text-main);">${of}</h3>
+            <div class="p2-header-right" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div class="perf-label ${perfClass}" style="padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 13px; background: ${perfPerc >= 75 ? 'var(--success-bg)' : 'var(--danger-bg)'}; color: ${perfPerc >= 75 ? 'var(--success-text)' : 'var(--danger-text)'};">PERFORMANCE: ${perfPerc}%</div>
+                ${missingDates.length > 0 ? `<div class="missing-label" onclick="openModal('Relatórios não enviados - ${of}', window.tempMissingData['${of}'])" style="cursor: pointer; background: var(--alert-bg); color: var(--alert-text); padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;">RELATÓRIOS NÃO ENVIADOS: ${missingDates.length} DIAS</div>` : ''}
+                ${insumoDaysList.length > 0 ? `<div class="insumo-label" onclick="openModal('Dias sem Insumo (Prod: 0) - ${of}', window.tempInsumoData['${of}'])" style="cursor: pointer; background: var(--insumo-bg); color: var(--insumo-text); padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;">DIAS SEM INSUMO: ${insumoDaysList.length} DIAS</div>` : ''}
+            </div>
+        </div>
+        <div style="height:300px"><canvas></canvas></div>`;
+      area.appendChild(div);
+
+      let ofMaxDate = dayRecords.length > 0 ? new Date(Math.max(...dayRecords.map(r => r.dateObj.getTime()))) : new Date(0);
+
+      let prodData = dates.map(d => {
+          let pts = d.split('/'); 
+          let dObj = new Date(pts[2], pts[1]-1, pts[0]);
+          if ((of === "GALPÃO 3.1" || of === "GALPÃO 3.2") && dObj > ofMaxDate) return null;
+          if (typeof isFeriado === 'function' && isFeriado(d, of)) return null;
+
+          let rs = filtered.filter(x => x.oficina === of && x.data === d);
+          if (rs.length === 0 && typeof isDateWeekend === 'function' && isDateWeekend(d)) return null; 
+          return rs.reduce((a,b) => a + b.producaoDia, 0) || 0;
+      });
+      
+      let metaData = dates.map(d => {
+          let pts = d.split('/'); 
+          let dObj = new Date(pts[2], pts[1]-1, pts[0]);
+          if ((of === "GALPÃO 3.1" || of === "GALPÃO 3.2") && dObj > ofMaxDate) return null;
+          if (typeof isFeriado === 'function' && isFeriado(d, of)) return null;
+
+          let rs = filtered.filter(x => x.oficina === of && x.data === d);
+          if (rs.length === 0 && typeof isDateWeekend === 'function' && isDateWeekend(d)) return null; 
+          let valid = rs.filter(r => !(r.producaoDia === 0 && typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa)));
+          if (valid.length > 0 && typeof calculateDynamicMeta === 'function') return calculateDynamicMeta(valid); 
+          let allInsumo = rs.length > 0 && rs.every(r => r.producaoDia === 0 && typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa));
+          if (allInsumo) return 0;
+          return refMeta;
+      });
+
+      let gridColor = typeof getThemeColor === 'function' ? getThemeColor('--chart-grid') : '#e0e0e0'; 
+      let txtColor = typeof getThemeColor === 'function' ? getThemeColor('--text-muted') : '#757575';
+      let ctx = div.querySelector('canvas');
+      
+      let chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            {
+              label: 'Produção', 
+              data: prodData, 
+              spanGaps: true, 
+              borderColor: '#1E88E5', 
+              backgroundColor: '#1E88E5',
+              borderWidth: 3, 
+              pointRadius: 5, 
+              pointBackgroundColor: typeof getThemeColor === 'function' ? getThemeColor('--surface') : '#ffffff', 
+              tension: 0.2
+            },
+            {
+              label: 'Meta', 
+              data: metaData, 
+              spanGaps: true, 
+              borderColor: '#EF5350', 
+              borderWidth: 2, 
+              borderDash: [6,6], 
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true, 
+          maintainAspectRatio: false,
+          scales: { 
+            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: txtColor } }, 
+            x: { grid: { display: false }, ticks: { color: txtColor } } 
+          },
+          plugins: { 
+            legend: { labels: { color: txtColor } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                    let label = context.dataset.label || '';
+                    if (label) label += ': ';
+                    if (context.parsed.y !== null) label += context.parsed.y;
+                    return label;
+                },
+                afterBody: function(tooltipItems) {
+                  let idx = tooltipItems[0].dataIndex; 
+                  let dateVal = dates[idx];
+                  let dayRecords = filtered.filter(x => x.oficina === of && x.data === dateVal);
+                  let totalProd = dayRecords.reduce((a, b) => a + b.producaoDia, 0);
+                  let validRecords = dayRecords.filter(r => !(r.producaoDia === 0 && typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa)));
+                  let dayMeta = (validRecords.length && typeof calculateDynamicMeta === 'function') ? calculateDynamicMeta(validRecords) : refMeta;
+                  
+                  let finalLines = [];
+                  finalLines.push(`--- DETALHES DO DIA ---`);
+                  
+                  if (dayRecords.length > 0) {
+                      let internosUsados = dayRecords[0].internos || '?';
+                      let maquinasUsadas = dayRecords[0].maquinas || '?';
+                      finalLines.push(`• Máquinas: ${maquinasUsadas} | Internos: ${internosUsados}`);
+                  }
+
+                  if (totalProd > 0 && typeof wrapText === 'function') {
+                    dayRecords.forEach(r => { 
+                        if (r.item !== 'Nenhum') {
+                            let extra = [];
+                            if (r.tamanho) extra.push(`Tam: ${r.tamanho}`);
+                            if (r.processoNome && r.processoNome !== '-') extra.push(`Órgão: ${r.processoNome}`);
+                            let extraStr = extra.length > 0 ? ` [${extra.join(' | ')}]` : '';
+                            finalLines.push(...wrapText(`• ${r.producaoDia}x ${r.item} (${r.tipo})${extraStr}`, 55)); 
+                        }
+                    });
+                  }
+
+                  // Triagem aprimorada de motivos e observações
+                  let justs = [...new Set(dayRecords.map(r => r.justificativa).filter(j => j && j.trim() !== ""))];
+                  let obss = [...new Set(dayRecords.map(r => r.observacao).filter(o => o && o.trim() !== ""))];
+
+                  if (totalProd < dayMeta) {
+                      if (justs.length > 0 && typeof wrapText === 'function') {
+                        justs.forEach(j => { finalLines.push(...wrapText(`• Justificativa: ${j}`, 55)); }); 
+                      } else {
+                        finalLines.push('• Justificativa: Não informada');
+                      }
+                  }
+
+                  if (obss.length > 0 && typeof wrapText === 'function') {
+                      obss.forEach(o => { finalLines.push(...wrapText(`• Obs: ${o}`, 55)); });
+                  }
+
+                  return finalLines;
+                }
+              }
+            }
+          }
+        }
+      });
+      activeCharts.push(chart);
+    });
+  }
+</script>

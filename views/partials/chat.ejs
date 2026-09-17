@@ -1,0 +1,301 @@
+<% if (typeof user !== 'undefined' && user) { %>
+    <!-- Wrapper fixo com z-index máximo (9999) para garantir que nada fique na frente do botão -->
+    <div style="position: fixed; bottom: 20px; right: 25px; z-index: 9999; display: flex; align-items: flex-end; flex-direction: column; gap: 10px;">
+        
+        <div class="chat-window shadow-lg" id="chat-window" style="display: none; width: 350px; height: 450px; background: white; border-radius: 12px; flex-direction: column; overflow: hidden; border: 1px solid #ddd;">
+            <div class="chat-header bg-primary text-white p-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold"><i class="bi bi-headset"></i> Suporte</span>
+                <div>
+                    <button class="btn btn-sm btn-outline-light me-2 py-0 px-1" onclick="encerrarSuporte()" title="Limpar conversa para mim">
+                        <i class="bi bi-trash"></i> Limpar
+                    </button>
+                    <button class="btn btn-sm btn-close btn-close-white" onclick="toggleChat()"></button>
+                </div>
+            </div>
+            
+            <% if (user.cargo === 'gestor') { %>
+            <div class="p-2 border-bottom bg-light">
+                <select id="chat-user-select" class="form-select form-select-sm fw-bold" onchange="mudarUsuario()" style="cursor: pointer;">
+                    <option value="">Selecione um suporte...</option>
+                </select>
+            </div>
+            <% } %>
+
+            <div class="chat-messages p-2" id="chat-messages" style="flex-grow: 1; overflow-y: auto; background-color: #f8f9fa; display: flex; flex-direction: column; gap: 8px;"></div>
+            <div class="chat-input-area p-2 border-top d-flex">
+                <input type="text" id="chat-input" class="form-control form-control-sm me-2" placeholder="Digite sua mensagem..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                <button class="btn btn-primary btn-sm" id="btn-send-chat" onclick="sendMessage()"><i class="bi bi-send"></i></button>
+            </div>
+        </div>
+
+        <!-- Botão Flutuante -->
+        <button class="btn btn-primary rounded-circle shadow position-relative" style="width: 60px; height: 60px; font-size: 24px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onclick="toggleChat()" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+            <i class="bi bi-chat-dots-fill"></i>
+            <span id="chat-badge" class="position-absolute bg-danger border border-light rounded-circle" style="display: none; width: 14px; height: 14px; top: 2px; right: 5px;"></span>
+        </button>
+
+    </div>
+
+    <script>
+        let chatOpen = false;
+        let chatInterval = null;
+        let notificacaoInterval = null;
+        let lastMsgCount = 0;
+        const isGestor = <%= user.cargo === 'gestor' ? 'true' : 'false' %>;
+        const currentUserId = "<%= user.id %>";
+
+        // Exibe alertas visuais dentro do chat sem bloquear a tela
+        function showChatAlert(mensagem, tipo = 'danger') {
+            const container = document.getElementById('chat-messages');
+            const id = 'alert-' + Date.now();
+            container.innerHTML += `
+                <div id="${id}" class="badge bg-${tipo} align-self-center my-2 p-2 fw-normal shadow-sm" style="font-size: 0.75rem; max-width: 80%; white-space: normal; text-align: center;">
+                    ${mensagem}
+                </div>
+            `;
+            container.scrollTop = container.scrollHeight;
+            
+            setTimeout(() => {
+                const el = document.getElementById(id);
+                if(el) el.remove();
+            }, 3000);
+        }
+
+        function iniciarRotinas() {
+            if (document.hidden) return;
+            limparRotinas();
+
+            if (chatOpen) {
+                if (isGestor) loadContatos();
+                loadMessages();
+                chatInterval = setInterval(() => {
+                    if (!document.hidden && !document.getElementById('confirm-clear')) {
+                        loadMessages();
+                        if (isGestor) loadContatos(true);
+                    }
+                }, 5000); 
+            } else {
+                notificacaoInterval = setInterval(() => {
+                    if (!document.hidden) checkNotificacoes();
+                }, 30000);
+                checkNotificacoes();
+            }
+        }
+
+        function limparRotinas() {
+            clearInterval(chatInterval);
+            clearInterval(notificacaoInterval);
+        }
+
+        function toggleChat() {
+            chatOpen = !chatOpen;
+            document.getElementById('chat-window').style.display = chatOpen ? 'flex' : 'none';
+            document.getElementById('chat-badge').style.display = 'none';
+            
+            // Remove qualquer painel de confirmação pendente ao fechar
+            const confirmBox = document.getElementById('confirm-clear');
+            if (confirmBox && !chatOpen) confirmBox.remove();
+            
+            iniciarRotinas();
+        }
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                limparRotinas();
+            } else {
+                iniciarRotinas();
+            }
+        });
+
+        function mudarUsuario() {
+            lastMsgCount = 0; 
+            document.getElementById('chat-messages').innerHTML = '';
+            loadMessages();
+        }
+
+        async function checkNotificacoes() {
+            try {
+                const res = await fetch('/suporte/notificacoes');
+                const data = await res.json();
+                document.getElementById('chat-badge').style.display = data.temNova ? 'block' : 'none';
+            } catch (e) {}
+        }
+
+        async function loadContatos(silencioso = false) {
+            try {
+                const res = await fetch('/suporte/contatos');
+                const contatos = await res.json();
+                const select = document.getElementById('chat-user-select');
+                const currentVal = select.value;
+                
+                const pendentes = contatos.filter(c => c.pendente);
+                const outros = contatos.filter(c => !c.pendente);
+
+                let html = '<option value="">Selecione um suporte...</option>';
+                
+                if (pendentes.length > 0) {
+                    html += '<optgroup label="🔴 NOVAS MENSAGENS" style="color: #dc3545;">';
+                    pendentes.forEach(c => {
+                        html += `<option style="color: black;" value="${c.id}" ${currentVal == c.id ? 'selected' : ''}>${c.nome} (Novo)</option>`;
+                    });
+                    html += '</optgroup>';
+                }
+                
+                if (outros.length > 0) {
+                    html += '<optgroup label="⚪ HISTÓRICO" style="color: #6c757d;">';
+                    outros.forEach(c => {
+                        html += `<option style="color: black;" value="${c.id}" ${currentVal == c.id ? 'selected' : ''}>${c.nome}</option>`;
+                    });
+                    html += '</optgroup>';
+                }
+                
+                if (select.innerHTML !== html) {
+                    select.innerHTML = html;
+                }
+            } catch (e) {}
+        }
+
+        async function loadMessages() {
+            if (!chatOpen || document.getElementById('confirm-clear')) return; // Pausa o reload se a confirmação estiver aberta
+            
+            let url = '/suporte/mensagens';
+            if (isGestor) {
+                const selectedUser = document.getElementById('chat-user-select').value;
+                if (!selectedUser) return;
+                url += `?usuario_id=${selectedUser}`;
+            }
+
+            try {
+                const res = await fetch(url);
+                const mensagens = await res.json();
+                
+                if (mensagens.length === lastMsgCount) return; 
+                lastMsgCount = mensagens.length;
+                
+                const box = document.getElementById('chat-messages');
+                box.innerHTML = '';
+                
+                mensagens.forEach(m => {
+                    const myMsg = m.remetente_id === currentUserId;
+                    const cssClass = myMsg ? 'bg-primary text-white align-self-end' : 'bg-light text-dark align-self-start border';
+                    const radius = myMsg ? '12px 12px 0 12px' : '12px 12px 12px 0';
+                    const name = myMsg ? 'Você' : m.remetente.nome;
+                    
+                    box.innerHTML += `
+                        <div class="shadow-sm p-2 ${cssClass}" style="max-width: 85%; border-radius: ${radius}; line-height: 1.3;">
+                            <small class="d-block mb-1" style="font-size: 0.65rem; opacity: 0.7;">${name}</small>
+                            <span style="font-size: 0.9rem;">${m.mensagem}</span>
+                        </div>
+                    `;
+                });
+                
+                box.scrollTop = box.scrollHeight;
+            } catch (e) {}
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('btn-send-chat');
+            const mensagem = input.value.trim();
+            if (!mensagem) return;
+
+            let bodyData = { mensagem };
+            if (isGestor) {
+                const selectedUser = document.getElementById('chat-user-select').value;
+                if (!selectedUser) {
+                    showChatAlert('Selecione um usuário na lista acima para responder.', 'warning');
+                    return;
+                }
+                bodyData.usuario_id = selectedUser;
+            }
+
+            input.value = ''; 
+            input.disabled = true;
+            btn.disabled = true;
+
+            const box = document.getElementById('chat-messages');
+            box.innerHTML += `
+                <div class="shadow-sm p-2 bg-primary text-white align-self-end opacity-75" style="max-width: 85%; border-radius: 12px 12px 0 12px; line-height: 1.3;">
+                    <small class="d-block mb-1" style="font-size: 0.65rem; opacity: 0.7;">Enviando...</small>
+                    <span style="font-size: 0.9rem;">${mensagem}</span>
+                </div>
+            `;
+            box.scrollTop = box.scrollHeight;
+            
+            try {
+                await fetch('/suporte/mensagens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                });
+                lastMsgCount = 0; 
+                loadMessages(); 
+            } catch (e) {
+                showChatAlert('Falha na conexão. Erro ao enviar mensagem.', 'danger');
+            } finally {
+                input.disabled = false;
+                btn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function encerrarSuporte() {
+            if (isGestor) {
+                const selectedUser = document.getElementById('chat-user-select').value;
+                if (!selectedUser) {
+                    showChatAlert('Selecione um usuário primeiro.', 'warning');
+                    return;
+                }
+            }
+
+            // Evita duplicar a caixa de confirmação
+            if (document.getElementById('confirm-clear')) return;
+
+            const box = document.getElementById('chat-messages');
+            box.innerHTML += `
+                <div id="confirm-clear" class="shadow-sm p-3 bg-warning text-dark align-self-center my-3 text-center border" style="border-radius: 8px; max-width: 90%; z-index: 10;">
+                    <p class="mb-2 fw-bold" style="font-size: 0.85rem;"><i class="bi bi-exclamation-triangle"></i> Limpar conversa?</p>
+                    <p class="mb-3" style="font-size: 0.75rem; line-height: 1.2;">As mensagens sumirão para você, mas a outra pessoa ainda poderá ver.</p>
+                    <button class="btn btn-sm btn-danger me-2" onclick="executeEncerrarSuporte()">Sim, limpar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="document.getElementById('confirm-clear').remove()">Cancelar</button>
+                </div>
+            `;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function executeEncerrarSuporte() {
+            let bodyData = {};
+            if (isGestor) {
+                const selectedUser = document.getElementById('chat-user-select').value;
+                if (!selectedUser) return;
+                bodyData.usuario_id = selectedUser;
+            }
+
+            const confirmBox = document.getElementById('confirm-clear');
+            if (confirmBox) confirmBox.remove();
+
+            try {
+                await fetch('/suporte/mensagens', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                });
+                
+                document.getElementById('chat-messages').innerHTML = '';
+                lastMsgCount = 0;
+                
+                if(isGestor) {
+                    document.getElementById('chat-user-select').value = '';
+                    loadContatos();
+                }
+
+                showChatAlert('A conversa foi limpa da sua tela.', 'success');
+                
+            } catch (e) {
+                showChatAlert('Erro ao limpar chat. Tente novamente.', 'danger');
+            }
+        }
+
+        iniciarRotinas();
+    </script>
+<% } %>

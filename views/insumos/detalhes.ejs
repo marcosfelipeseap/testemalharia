@@ -1,0 +1,215 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-start pt-3 pb-3 mb-4 border-bottom">
+    <div>
+        <h1 class="h2 text-dark mb-1">
+            <i class="bi <%= categoria === 'tecido' ? 'bi-layers-half text-success' : 'bi-paperclip' %> me-2" style="<%= categoria === 'aviamento' ? 'color: #6f42c1;' : '' %>"></i>
+            <%= insumo.nome %>
+        </h1>
+        <p class="text-muted small mb-3"><i class="bi bi-info-circle"></i> Painel de Últimas Entregas por Variação</p>
+        
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <% if (insumo.variacoes && insumo.variacoes.length > 0) { %>
+                <% insumo.variacoes.forEach(v => { %>
+                    <div class="border border-secondary rounded bg-light p-2 shadow-sm d-flex flex-column" style="min-width: 160px;">
+                        <span class="fw-bold text-dark mb-1" style="font-size: 0.85rem;">
+                            <i class="bi bi-palette2 text-muted me-1"></i> 
+                            <%= v.cor !== '-' ? v.cor : 'Padrão' %> 
+                            <span class="text-muted fw-normal"><%= v.tamanho !== '-' ? '| ' + v.tamanho : '' %></span>
+                        </span>
+                        
+                        <% if (v.ultima_entrega) { %>
+                            <div class="d-flex justify-content-between align-items-center mt-1 pt-2 border-top border-light">
+                                <span class="text-secondary fw-bold" style="font-size: 0.75rem;"><i class="bi bi-calendar-event text-success"></i> <%= new Date(v.ultima_entrega.data_acao).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) %></span>
+                                <span class="badge bg-success ms-2">+ <%= v.ultima_entrega.quantidade %></span>
+                            </div>
+                        <% } %>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <span class="badge bg-secondary py-2 shadow-sm"><i class="bi bi-dash-circle me-1"></i> Nenhuma entrega registada</span>
+            <% } %>
+        </div>
+    </div>
+    
+    <div class="btn-toolbar mb-2 mb-md-0 gap-2 mt-3 mt-md-0 align-items-start">
+        <a href="/insumos/<%= malharia_id %>/<%= categoria %>" class="btn btn-outline-secondary shadow-sm"><i class="bi bi-arrow-left"></i> Voltar</a>
+        
+        <% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-gear"></i> Opções
+                </button>
+                <ul class="dropdown-menu shadow">
+                    <li><button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#modalExcluirProduto"><i class="bi bi-trash me-2"></i> Excluir Insumo</button></li>
+                </ul>
+            </div>
+
+            <button type="button" class="btn btn-success shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#novaEntradaModal">
+                <i class="bi bi-plus-lg"></i> Novo Lançamento
+            </button>
+        <% } %>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-4">
+    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-columns-reverse me-2"></i> Registro de Lançamentos</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Data</th>
+                        <th>Responsável</th>
+                        <th>Cor / Tamanho</th>
+                        <th>Detalhe/Tipo</th>
+                        <th>Qtd Entregue</th>
+                        <th>Observações</th>
+                        <th>Documentos</th>
+                        <% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+                            <th class="text-end pe-3">Ações</th>
+                        <% } %>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% movimentacoes.forEach(mov => { %>
+                        <tr>
+                            <td class="ps-3 text-secondary fw-bold"><i class="bi bi-truck me-1"></i> <%= new Date(mov.data_acao).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) %></td>
+                            <td><span class="badge bg-secondary"><i class="bi bi-person me-1"></i> <%= mov.responsavel %></span></td>
+                            
+                            <td>
+                                <span class="fw-bold text-dark"><%= mov.cor || 'Padrão' %></span>
+                                <% if(mov.tamanho && mov.tamanho !== '-') { %>
+                                    <span class="text-muted small ms-1">| <%= mov.tamanho %></span>
+                                <% } %>
+                            </td>
+                            
+                            <td><%= mov.tipo_detalhe || '-' %></td>
+                            <td class="text-success fw-bold fs-6">+ <%= mov.quantidade %></td>
+                            <td class="small text-muted" style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<%= mov.observacao %>"><%= mov.observacao || '-' %></td>
+                            <td>
+                                <% if(mov.nota_fiscal_url) { %><a href="<%= mov.nota_fiscal_url %>" target="_blank" class="btn btn-sm btn-outline-primary py-0" title="Ver Nota Fiscal"><i class="bi bi-receipt"></i> NF</a><% } %>
+                                <% if(mov.comprovante_url) { %><a href="<%= mov.comprovante_url %>" target="_blank" class="btn btn-sm btn-outline-info py-0" title="Ver Comprovante"><i class="bi bi-file-earmark-check"></i> Comp.</a><% } %>
+                            </td>
+                            
+                            <% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group shadow-sm">
+                                        <button type="button" class="btn btn-sm btn-light border" onclick="abrirModalEditarLançamento('<%= mov.id %>', '<%= mov.data_acao %>', '<%= mov.responsavel %>', '<%= mov.tipo_detalhe || '' %>', '<%= mov.cor || '' %>', '<%= mov.tamanho || '' %>', '<%= mov.quantidade %>', '<%= mov.observacao || '' %>')" title="Editar Lançamento">
+                                            <i class="bi bi-pencil text-warning"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-light border text-danger" onclick="abrirModalExcluirLançamento('<%= mov.id %>')" title="Excluir Lançamento">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            <% } %>
+                        </tr>
+                    <% }) %>
+                    <% if(movimentacoes.length === 0) { %>
+                        <tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i> Nenhum lançamento registado para este insumo.</td></tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<% if (typeof user !== 'undefined' && user.cargo !== 'monitor' && user.cargo !== 'coordenador') { %>
+    <div class="modal fade" id="modalExcluirProduto" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content shadow" action="/insumos/<%= malharia_id %>/<%= categoria %>/<%= insumo.id %>/excluir" method="POST">
+                <div class="modal-header bg-danger text-white"><h5 class="modal-title fw-bold">Atenção!</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-exclamation-triangle display-4 text-danger mb-3 d-block"></i>
+                    <p>Tem a certeza que deseja excluir o insumo <b><%= insumo.nome %></b>?</p>
+                    <p class="text-danger small fw-bold">Isto irá apagar permanentemente TODOS os lançamentos deste item!</p>
+                </div>
+                <div class="modal-footer bg-light"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger fw-bold">Sim, Excluir Insumo</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="novaEntradaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <form class="modal-content shadow" action="/insumos/<%= malharia_id %>/<%= categoria %>/<%= insumo.id %>/movimentar" method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-success text-white"><h5 class="modal-title fw-bold"><i class="bi bi-plus-circle"></i> Novo Lançamento de <%= insumo.nome %></h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Data da Entrega *</label><input type="date" class="form-control" name="data_acao" required></div>
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Responsável *</label><input type="text" class="form-control" name="responsavel" required></div>
+                        
+                        <div class="col-md-4"><label class="form-label small fw-bold text-secondary">Cor</label><input type="text" class="form-control" name="cor" placeholder="Ex: Azul, Preto, Padrão..."></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold text-secondary">Tamanho / Medida</label><input type="text" class="form-control" name="tamanho" placeholder="Ex: P, M, 15cm..."></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold text-secondary">Detalhe Extra (Opcional)</label><input type="text" class="form-control" name="tipo_detalhe" placeholder="Ex: Fio 30.1"></div>
+                        
+                        <div class="col-md-12"><label class="form-label small fw-bold text-secondary">Quantidade Entregue *</label><input type="number" step="0.01" class="form-control fw-bold text-success border-success" name="quantidade" required></div>
+                        <div class="col-md-12"><label class="form-label small fw-bold text-secondary">Observações</label><textarea class="form-control" name="observacao" rows="2"></textarea></div>
+                        
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Nota Fiscal (PDF)</label><input type="file" class="form-control" name="nota_fiscal" accept="application/pdf"></div>
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Comprovante de Entrega (PDF)</label><input type="file" class="form-control" name="comprovante" accept="application/pdf"></div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success fw-bold">Salvar Lançamento</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEditarEntrada" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <form class="modal-content shadow" id="form_edit_lancamento" method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-warning text-dark"><h5 class="modal-title fw-bold"><i class="bi bi-pencil"></i> Editar Lançamento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Data da Entrega *</label><input type="date" class="form-control" name="data_acao" id="edit_data" required></div>
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Responsável *</label><input type="text" class="form-control" name="responsavel" id="edit_responsavel" required></div>
+                        
+                        <div class="col-md-4"><label class="form-label small fw-bold text-secondary">Cor</label><input type="text" class="form-control" name="cor" id="edit_cor"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold text-secondary">Tamanho / Medida</label><input type="text" class="form-control" name="tamanho" id="edit_tamanho"></div>
+                        <div class="col-md-4"><label class="form-label small fw-bold text-secondary">Detalhe Extra (Opcional)</label><input type="text" class="form-control" name="tipo_detalhe" id="edit_tipo"></div>
+                        
+                        <div class="col-md-12"><label class="form-label small fw-bold text-secondary">Quantidade *</label><input type="number" step="0.01" class="form-control fw-bold text-success border-warning" name="quantidade" id="edit_quantidade" required></div>
+                        <div class="col-md-12"><label class="form-label small fw-bold text-secondary">Observações</label><textarea class="form-control" name="observacao" id="edit_observacao" rows="2"></textarea></div>
+                        
+                        <div class="col-md-12 text-muted small mt-3 border-top pt-2">Se enviar novos PDFs, os antigos serão substituídos. Deixe em branco para manter os atuais.</div>
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Nova Nota Fiscal (PDF)</label><input type="file" class="form-control" name="nota_fiscal" accept="application/pdf"></div>
+                        <div class="col-md-6"><label class="form-label small fw-bold text-secondary">Novo Comprovante (PDF)</label><input type="file" class="form-control" name="comprovante" accept="application/pdf"></div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-warning fw-bold text-dark">Salvar Alterações</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalExcluirEntrada" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content shadow" id="form_delete_lancamento" method="POST">
+                <div class="modal-header bg-danger text-white"><h5 class="modal-title fw-bold">Excluir Lançamento</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-trash text-danger display-4 d-block mb-3"></i>
+                    <p>Tem a certeza que deseja excluir este lançamento?</p>
+                </div>
+                <div class="modal-footer bg-light"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger fw-bold">Sim, Excluir</button></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function abrirModalEditarLançamento(id, data, resp, tipo, cor, tam, qtd, obs) {
+            document.getElementById('form_edit_lancamento').action = `/insumos/<%= malharia_id %>/<%= categoria %>/<%= insumo.id %>/movimentacao/${id}/editar`;
+            document.getElementById('edit_data').value = data.split('T')[0];
+            document.getElementById('edit_responsavel').value = resp;
+            document.getElementById('edit_tipo').value = tipo;
+            document.getElementById('edit_cor').value = cor;
+            document.getElementById('edit_tamanho').value = tam;
+            document.getElementById('edit_quantidade').value = qtd;
+            document.getElementById('edit_observacao').value = obs;
+            new bootstrap.Modal(document.getElementById('modalEditarEntrada')).show();
+        }
+
+        function abrirModalExcluirLançamento(id) {
+            document.getElementById('form_delete_lancamento').action = `/insumos/<%= malharia_id %>/<%= categoria %>/<%= insumo.id %>/movimentacao/${id}/excluir`;
+            new bootstrap.Modal(document.getElementById('modalExcluirEntrada')).show();
+        }
+    </script>
+<% } %>

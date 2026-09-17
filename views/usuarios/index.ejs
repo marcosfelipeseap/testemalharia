@@ -1,0 +1,363 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 fw-bold text-secondary">
+        <i class="bi bi-people me-2"></i>Gestão de Usuários
+    </h1>
+</div>
+
+<% 
+    let ativos = [];
+    let pendentes = [];
+    
+    if (typeof usuarios !== 'undefined' && usuarios.length > 0) {
+        usuarios.forEach(u => {
+            const stat = (u.status || '').toLowerCase().trim();
+            if (stat === 'inativo' || stat === 'pendente') {
+                pendentes.push(u);
+            } else {
+                ativos.push(u);
+            }
+        });
+    }
+
+    // Define o nível do usuário logado para controle de botões na view
+    const nivelUsuarioLogado = typeof user !== 'undefined' ? user.nivel : 0;
+    
+    // Função auxiliar para descobrir o nível do cargo do card a ser renderizado
+    const getNivelByCargo = (cargo) => {
+        const cargosNiveis = { 'monitor': 1, 'controlador': 1, 'coordenador': 2, 'gestor': 3, 'admin': 4 };
+        return cargosNiveis[cargo] || 0;
+    };
+%>
+
+<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+    <div class="card-body p-3">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" id="inputPesquisa" class="form-control" placeholder="Buscar por nome ou @login...">
+                </div>
+            </div>
+            
+            <div class="col-12 col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-briefcase"></i></span>
+                    <select id="selectCargo" class="form-select">
+                        <option value="">Todos os Cargos</option>
+                        <option value="admin">Admin</option>
+                        <option value="gestor">Gestor</option>
+                        <option value="coordenador">Coordenador</option>
+                        <option value="controlador">Controlador</option>
+                        <option value="monitor">Monitor</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="bi bi-building"></i></span>
+                    <select id="selectMalharia" class="form-select">
+                        <option value="">Todas as Oficinas</option>
+                        <% if (typeof malharias !== 'undefined') { %>
+                            <% malharias.forEach(m => { %>
+                                <option value="<%= m.id %>"><%= m.nome %></option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4 border-bottom-0" id="usuariosTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold px-4 text-primary bg-white border" id="ativos-tab" data-bs-toggle="tab" data-bs-target="#ativos-pane" type="button" role="tab" aria-controls="ativos-pane" aria-selected="true" style="border-bottom-color: transparent !important;">
+            <i class="bi bi-person-lines-fill me-2"></i>Usuários 
+            <span class="badge bg-primary rounded-pill ms-1" id="countAtivos"><%= ativos.length %></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4 text-secondary bg-light border ms-2" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes-pane" type="button" role="tab" aria-controls="pendentes-pane" aria-selected="false">
+            <i class="bi bi-person-plus-fill me-2"></i>Novos Cadastros
+            <span class="badge <%= pendentes.length > 0 ? 'bg-danger' : 'bg-secondary' %> rounded-pill ms-1" id="countPendentes"><%= pendentes.length %></span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="usuariosTabContent">
+    
+    <div class="tab-pane fade show active" id="ativos-pane" role="tabpanel" aria-labelledby="ativos-tab" tabindex="0">
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4" id="listaAtivos">
+            <% if (ativos.length > 0) { %>
+                <% ativos.forEach(function(usuario) { %>
+                    <div class="col user-card-item" 
+                         data-nome="<%= usuario.nome.toLowerCase() %>"
+                         data-username="<%= usuario.username.toLowerCase() %>"
+                         data-cargo="<%= (usuario.cargo || '').toLowerCase() %>"
+                         data-malharias="<%= (usuario.malharias_permitidas || []).join(',') %>">
+                         
+                        <div class="card h-100 shadow-sm border-0 bg-white">
+                            <div class="card-body text-center d-flex flex-column pt-4">
+                                
+                                <div class="bg-light text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center border shadow-sm" 
+                                     style="width: 70px; height: 70px; font-size: 2rem; font-weight: bold; background-size: cover; background-position: center; transition: transform 0.2s; <%= usuario.avatar ? `background-image: url('${usuario.avatar}'); color: transparent !important; cursor: pointer;` : '' %>"
+                                     <% if (usuario.avatar) { %> 
+                                        onclick="ampliarFoto('<%= usuario.avatar %>')" 
+                                        onmouseover="this.style.transform='scale(1.05)'" 
+                                        onmouseout="this.style.transform='scale(1)'"
+                                        title="Clique para ampliar a foto"
+                                     <% } %>>
+                                    <%= !usuario.avatar ? usuario.nome.charAt(0).toUpperCase() : '' %>
+                                </div>
+                                
+                                <h5 class="card-title fw-bold text-dark mb-0 text-truncate" title="<%= usuario.nome %>"><%= usuario.nome %></h5>
+                                <p class="text-muted small mb-2">@<%= usuario.username %></p>
+                                
+                                <% if (usuario.email || usuario.telefone) { %>
+                                    <div class="text-start bg-light border rounded-3 p-2 mx-3 mb-3 small text-muted">
+                                        <% if (usuario.email) { %><div class="text-truncate mb-1" title="<%= usuario.email %>"><i class="bi bi-envelope-fill me-2 text-secondary"></i><%= usuario.email %></div><% } %>
+                                        <% if (usuario.telefone) { %><div class="text-truncate" title="<%= usuario.telefone %>"><i class="bi bi-telephone-fill me-2 text-secondary"></i><%= usuario.telefone %></div><% } %>
+                                    </div>
+                                <% } %>
+                                
+                                <div class="mt-auto">
+                                    <span class="badge bg-secondary text-uppercase mb-3 px-3 py-2"><%= usuario.cargo %></span>
+                                    
+                                    <% if (usuario.cargo === 'monitor') { %>
+                                        <% 
+                                            let nomesMalharias = [];
+                                            if (usuario.malharias_permitidas && usuario.malharias_permitidas.length > 0) {
+                                                nomesMalharias = usuario.malharias_permitidas.map(id => {
+                                                    const mal = malharias.find(m => String(m.id) === String(id));
+                                                    return mal ? mal.nome : `ID: ${id}`;
+                                                });
+                                            }
+                                        %>
+                                        <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="verMalhariasMonitor('<%= usuario.nome %>', '<%= nomesMalharias.join('||') %>')">
+                                            <i class="bi bi-building me-1"></i> Ver Oficinas
+                                        </button>
+                                    <% } %>
+                                </div>
+                            </div>
+                            
+                            <!-- RESTRIÇÃO DE AÇÕES NO CARD ATIVO -->
+                            <% if (nivelUsuarioLogado > getNivelByCargo(usuario.cargo) || user.id === usuario.id || nivelUsuarioLogado === 4) { %>
+                                <div class="card-footer bg-light border-top p-3 d-flex gap-2">
+                                    <a href="/usuarios/<%= usuario.id %>/editar" class="btn btn-sm btn-outline-secondary flex-grow-1 fw-semibold">
+                                        <i class="bi bi-pencil-square me-1"></i>Editar
+                                    </a>
+                                    <% if (user.id !== usuario.id) { %>
+                                        <form action="/usuarios/<%= usuario.id %>/excluir" method="POST" class="flex-grow-1" onsubmit="return confirm('Excluir <%= usuario.nome %> permanentemente do sistema?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100 fw-semibold">
+                                                <i class="bi bi-trash3 me-1"></i>Excluir
+                                            </button>
+                                        </form>
+                                    <% } %>
+                                </div>
+                            <% } else { %>
+                                <div class="card-footer bg-light border-top p-2 text-center text-muted small fst-italic">
+                                    <i class="bi bi-shield-lock me-1"></i>Ações Restritas
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }); %>
+            <% } %>
+        </div>
+        
+        <div id="noResultsAtivos" class="alert alert-light border text-center py-5 rounded-3 shadow-sm text-muted mt-4" style="display: <%= ativos.length > 0 ? 'none' : 'block' %>;">
+            <i class="bi bi-search text-secondary" style="font-size: 3rem;"></i>
+            <h5 class="mt-3 fw-bold">Nenhum usuário encontrado</h5>
+            <p class="mb-0">Tente ajustar os filtros ou a sua pesquisa.</p>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="pendentes-pane" role="tabpanel" aria-labelledby="pendentes-tab" tabindex="0">
+        
+        <div class="mb-4">
+            <h5 class="fw-bold text-dark">Aprovação de Cadastros</h5>
+            <p class="text-muted small">Os usuários abaixo efetuaram o cadastro e aguardam a atribuição de um cargo para poderem acessar o sistema.</p>
+        </div>
+
+        <div class="row g-3" id="listaPendentes">
+            <% if (pendentes.length > 0) { %>
+                <% pendentes.forEach(function(usuario) { %>
+                    <div class="col-12 user-card-item"
+                         data-nome="<%= usuario.nome.toLowerCase() %>"
+                         data-username="<%= usuario.username.toLowerCase() %>"
+                         data-cargo="<%= (usuario.cargo || '').toLowerCase() %>"
+                         data-malharias="">
+                         
+                        <div class="card shadow-sm border-0 border-start border-4 border-warning bg-white">
+                            <div class="card-body p-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                                <div class="d-flex align-items-center">
+                                    
+                                    <div class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm border" 
+                                         style="width: 55px; height: 55px; font-size: 1.5rem; font-weight: bold; border-color: #ffc107 !important; background-size: cover; background-position: center; transition: transform 0.2s; <%= usuario.avatar ? `background-image: url('${usuario.avatar}'); color: transparent !important; cursor: pointer;` : '' %>"
+                                         <% if (usuario.avatar) { %> 
+                                            onclick="ampliarFoto('<%= usuario.avatar %>')" 
+                                            onmouseover="this.style.transform='scale(1.05)'" 
+                                            onmouseout="this.style.transform='scale(1)'"
+                                            title="Clique para ampliar a foto"
+                                         <% } %>>
+                                        <%= !usuario.avatar ? usuario.nome.charAt(0).toUpperCase() : '' %>
+                                    </div>
+                                    
+                                    <div>
+                                        <h6 class="fw-bold mb-0 text-dark">
+                                            <%= usuario.nome %> 
+                                            <span class="badge bg-warning text-dark ms-2 text-uppercase"><%= usuario.status || 'Novo' %></span>
+                                        </h6>
+                                        
+                                        <div class="text-muted small mt-1 d-flex flex-wrap gap-2 align-items-center">
+                                            <span><i class="bi bi-person me-1"></i>@<%= usuario.username %></span>
+                                            
+                                            <% if (usuario.email) { %>
+                                                <span class="text-secondary">|</span>
+                                                <span><i class="bi bi-envelope-fill me-1"></i><%= usuario.email %></span>
+                                            <% } %>
+                                            
+                                            <% if (usuario.telefone) { %>
+                                                <span class="text-secondary">|</span>
+                                                <span><i class="bi bi-telephone-fill me-1"></i><%= usuario.telefone %></span>
+                                            <% } %>
+
+                                            <span class="text-secondary">|</span>
+                                            <span><i class="bi bi-calendar3 me-1"></i> Cadastrado: <%= new Date(usuario.criado_em).toLocaleDateString('pt-BR') %></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- AÇÕES DO CARD PENDENTE (Gestor e Admin podem aprovar) -->
+                                <div class="d-flex gap-2 mt-2 mt-md-0">
+                                    <a href="/usuarios/<%= usuario.id %>/editar" class="btn btn-success px-4 fw-semibold shadow-sm text-nowrap">
+                                        <i class="bi bi-check-circle me-1"></i> Definir Função & Aprovar
+                                    </a>
+                                    <form action="/usuarios/<%= usuario.id %>/excluir" method="POST" onsubmit="return confirm('Tem certeza que deseja RECUSAR e EXCLUIR o cadastro de <%= usuario.nome %>? Esta ação é irreversível.');">
+                                        <button type="submit" class="btn btn-danger px-3 fw-semibold shadow-sm text-nowrap">
+                                            <i class="bi bi-x-circle me-1"></i> Recusar
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            <% } %>
+        </div>
+
+        <div id="noResultsPendentes" class="alert alert-success d-flex align-items-center rounded-3 shadow-sm border-0 p-4 mt-3" style="display: <%= pendentes.length > 0 ? 'none' : 'flex' %>;">
+            <i class="bi bi-check2-circle fs-1 text-success me-4"></i>
+            <div>
+                <h5 class="fw-bold mb-1">Sem resultados pendentes</h5>
+                <p class="mb-0 text-muted">Nenhum novo cadastro corresponde a esta pesquisa ou filtro.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalMalhariasMonitor" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white py-3 border-0">
+                <h6 class="modal-title fw-bold">Oficinas do Monitor</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-3">Oficinas vinculadas a <b id="nomeMonitorModal" class="text-dark"></b>:</p>
+                <ul class="list-group list-group-flush border rounded-3" id="listaMalhariasModal">
+                </ul>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 justify-content-center">
+                <button type="button" class="btn btn-secondary rounded px-4" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAmpliarFoto" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-header border-0 p-2 justify-content-end position-absolute top-0 end-0 z-3">
+                <button type="button" class="btn-close btn-close-white bg-dark p-2 opacity-75 rounded-circle shadow" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0 position-relative">
+                <img id="imgFotoAmpliada" src="" alt="Foto do Usuário" class="img-fluid rounded-4 shadow-lg border border-3 border-white" style="max-height: 80vh; max-width: 100%; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function ampliarFoto(base64Image) {
+        document.getElementById('imgFotoAmpliada').src = base64Image;
+        new bootstrap.Modal(document.getElementById('modalAmpliarFoto')).show();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const inputPesquisa = document.getElementById('inputPesquisa');
+        const selectCargo = document.getElementById('selectCargo');
+        const selectMalharia = document.getElementById('selectMalharia');
+        
+        const userCards = document.querySelectorAll('.user-card-item');
+
+        const noResultsAtivos = document.getElementById('noResultsAtivos');
+        const noResultsPendentes = document.getElementById('noResultsPendentes');
+        
+        const listaAtivos = document.getElementById('listaAtivos');
+        const listaPendentes = document.getElementById('listaPendentes');
+
+        function aplicarFiltros() {
+            const termo = inputPesquisa.value.toLowerCase().trim();
+            const cargo = selectCargo.value.toLowerCase();
+            const malhariaId = selectMalharia.value;
+
+            let visiveisAtivos = 0;
+            let visiveisPendentes = 0;
+
+            userCards.forEach(card => {
+                const nome = card.getAttribute('data-nome') || '';
+                const username = card.getAttribute('data-username') || '';
+                const cardCargo = card.getAttribute('data-cargo') || '';
+                const cardMalharias = card.getAttribute('data-malharias') ? card.getAttribute('data-malharias').split(',') : [];
+
+                const matchTexto = nome.includes(termo) || username.includes(termo);
+                const matchCargo = cargo === '' || cardCargo === cargo;
+                const matchMalharia = malhariaId === '' || cardMalharias.includes(malhariaId);
+
+                if (matchTexto && matchCargo && matchMalharia) {
+                    card.style.display = ''; 
+                    
+                    if (listaAtivos.contains(card)) visiveisAtivos++;
+                    if (listaPendentes.contains(card)) visiveisPendentes++;
+                } else {
+                    card.style.display = 'none'; 
+                }
+            });
+
+            noResultsAtivos.style.display = (visiveisAtivos === 0) ? 'block' : 'none';
+            noResultsPendentes.style.display = (visiveisPendentes === 0) ? 'flex' : 'none';
+        }
+
+        inputPesquisa.addEventListener('input', aplicarFiltros);
+        selectCargo.addEventListener('change', aplicarFiltros);
+        selectMalharia.addEventListener('change', aplicarFiltros);
+    });
+
+    function verMalhariasMonitor(nomeUsuario, malhariasString) {
+        document.getElementById('nomeMonitorModal').innerText = nomeUsuario;
+        const lista = document.getElementById('listaMalhariasModal');
+        lista.innerHTML = '';
+
+        if (!malhariasString || malhariasString.trim() === '') {
+            lista.innerHTML = '<li class="list-group-item text-danger small text-center py-3 border-0 bg-light rounded-3">Nenhuma oficina vinculada.</li>';
+        } else {
+            const listaArray = malhariasString.split('||');
+            listaArray.forEach(m => {
+                lista.innerHTML += `<li class="list-group-item small text-dark border-bottom"><i class="bi bi-check-circle-fill text-success me-2"></i> ${m}</li>`;
+            });
+        }
+        new bootstrap.Modal(document.getElementById('modalMalhariasMonitor')).show();
+    }
+</script>

@@ -1,0 +1,145 @@
+<style>
+    /* Estilos herdados e adaptados do Estoque Principal */
+    .folder-card { cursor: pointer; transition: all 0.2s ease-in-out; border: 2px solid transparent; }
+    .folder-card:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1.5rem rgba(13, 110, 253, 0.15)!important; border-color: #0d6efd; background-color: #f8fbff !important; }
+    
+    /* Estilos específicos para as pastas de Insumos */
+    .folder-card-tecido { border-color: rgba(25, 135, 84, 0.3) !important; }
+    .folder-card-tecido:hover { border-color: #198754 !important; box-shadow: 0 .5rem 1.5rem rgba(25, 135, 84, 0.15)!important; background-color: #f0fdf4 !important; }
+    
+    .folder-card-aviamento { border-color: rgba(111, 66, 193, 0.3) !important; }
+    .folder-card-aviamento:hover { border-color: #6f42c1 !important; box-shadow: 0 .5rem 1.5rem rgba(111, 66, 193, 0.15)!important; background-color: #fcf8ff !important; }
+
+    .search-box { max-width: 350px; }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2"><i class="bi bi-boxes text-primary"></i> Controle de Insumos</h1>
+</div>
+
+<% if (!malharias || malharias.length === 0) { %>
+    <div class="alert alert-warning text-center shadow-sm py-4">
+        <i class="bi bi-exclamation-triangle fs-1 text-warning d-block mb-2"></i>
+        <h5 class="fw-bold">Nenhuma unidade cadastrada</h5>
+        <p class="mb-0 text-muted">Não há malharias ou unidades vinculadas para gerenciar insumos.</p>
+    </div>
+<% } else { %>
+
+    <div id="view-malharias" class="view-section">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="text-secondary m-0"><i class="bi bi-1-circle"></i> Selecione o Almoxarifado / Unidade:</h5>
+            <div class="input-group search-box shadow-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar unidade..." onkeyup="pesquisarCards(this, 'lista-malharias')">
+            </div>
+        </div>
+
+        <div class="row g-4" id="lista-malharias">
+            <% malharias.forEach(function(malharia) { %>
+                <div class="col-sm-6 col-md-4 col-lg-3 item-pesquisavel" data-search="<%= malharia.nome.toLowerCase() %>">
+                    <div class="card h-100 shadow-sm folder-card bg-white" onclick="abrirPastas('<%= malharia.id %>', '<%= malharia.nome %>')">
+                        <div class="card-body text-center d-flex flex-column justify-content-center align-items-center py-4">
+                            <i class="bi bi-shop display-4 text-primary mb-3"></i>
+                            <h5 class="fw-bold text-dark mb-1"><%= malharia.nome %></h5>
+                            <small class="text-muted mb-2">Controle de Materiais</small>
+                            
+                            <div class="mt-auto w-100">
+                                <hr class="my-2 border-primary border-opacity-25">
+                                <span class="text-secondary small fw-bold"><i class="bi bi-folder2-open"></i> Acessar Pastas</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    </div>
+
+    <div id="view-pastas" class="view-section d-none">
+        <div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-3 flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary shadow-sm" onclick="mostrarMalharias()">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h4 class="m-0 fw-bold text-dark">
+                    <i class="bi bi-shop text-primary me-1"></i> <span id="nome-malharia-selecionada">Unidade</span> 
+                    <span class="text-muted fw-normal fs-5 mx-2">/</span> 
+                    <span class="text-secondary"><i class="bi bi-2-circle"></i> Almoxarifado Base</span>
+                </h4>
+            </div>
+        </div>
+
+        <div class="row g-4 justify-content-center mt-2">
+            <div class="col-sm-6 col-md-5 col-lg-4">
+                <div class="card h-100 shadow-sm folder-card folder-card-tecido bg-white" onclick="acessarEstoque('tecido')">
+                    <div class="card-body text-center d-flex flex-column justify-content-center align-items-center py-5">
+                        <i class="bi bi-layers-half display-3 text-success mb-3"></i>
+                        <h4 class="fw-bold text-dark text-uppercase mb-1">Tecidos & Malhas</h4>
+                        <small class="text-muted mb-3">Rolos, Retalhos, Fardos de Malha...</small>
+                        <div class="mt-auto w-100">
+                            <hr class="my-3 border-success border-opacity-25">
+                            <span class="text-success fw-bold fs-6">Abrir Estoque de Tecido <i class="bi bi-arrow-right-circle ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-md-5 col-lg-4">
+                <div class="card h-100 shadow-sm folder-card folder-card-aviamento bg-white" onclick="acessarEstoque('aviamento')">
+                    <div class="card-body text-center d-flex flex-column justify-content-center align-items-center py-5">
+                        <i class="bi bi-paperclip display-3 mb-3" style="color: #6f42c1;"></i>
+                        <h4 class="fw-bold text-dark text-uppercase mb-1">Aviamentos</h4>
+                        <small class="text-muted mb-3">Linhas, Zíperes, Botões, Elásticos...</small>
+                        <div class="mt-auto w-100">
+                            <hr class="my-3 border-opacity-25" style="border-color: #6f42c1;">
+                            <span class="fw-bold fs-6" style="color: #6f42c1;">Abrir Estoque de Aviamento <i class="bi bi-arrow-right-circle ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<% } %>
+
+<script>
+    let malhariaAtualId = null;
+
+    // Função para esconder todas as telas (views)
+    function ocultarTodasAsTelas() {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none'));
+        document.querySelectorAll('.search-box input').forEach(input => input.value = '');
+        document.querySelectorAll('.item-pesquisavel').forEach(el => el.style.display = '');
+    }
+
+    // Retorna para a tela de Seleção de Malharia
+    function mostrarMalharias() {
+        ocultarTodasAsTelas();
+        document.getElementById('view-malharias').classList.remove('d-none');
+        malhariaAtualId = null;
+    }
+
+    // Avança para a tela de Seleção de Pastas (Tecido/Aviamento)
+    function abrirPastas(malhariaId, malhariaNome) {
+        malhariaAtualId = malhariaId;
+        document.getElementById('nome-malharia-selecionada').innerText = malhariaNome;
+        ocultarTodasAsTelas();
+        document.getElementById('view-pastas').classList.remove('d-none');
+    }
+
+    // Redireciona para a Rota Final do Estoque escolhido
+    function acessarEstoque(categoria) {
+        if (malhariaAtualId && categoria) {
+            window.location.href = `/insumos/${malhariaAtualId}/${categoria}`;
+        }
+    }
+
+    // Função de filtro da barra de pesquisa
+    function pesquisarCards(inputElement, containerId) {
+        const termo = inputElement.value.toLowerCase().trim();
+        const container = document.getElementById(containerId);
+        const cards = container.querySelectorAll('.item-pesquisavel');
+        cards.forEach(card => {
+            card.style.display = card.getAttribute('data-search').includes(termo) ? '' : 'none';
+        });
+    }
+</script>

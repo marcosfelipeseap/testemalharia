@@ -1,0 +1,460 @@
+<style>
+    .folder-card { cursor: pointer; transition: all 0.2s ease-in-out; border: 2px solid transparent; }
+    .folder-card:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1.5rem rgba(13, 110, 253, 0.15)!important; border-color: #0d6efd; background-color: #f8fbff !important; }
+    .search-box { max-width: 350px; }
+    
+    .pulse-badge-success { animation: pulse-success 2s infinite; }
+    @keyframes pulse-success { 0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(25, 135, 84, 0); } 100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); } }
+    
+    .pulse-badge-danger { animation: pulse-danger 2s infinite; }
+    @keyframes pulse-danger { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
+    
+    .lista-insumos-modal::-webkit-scrollbar { width: 6px; }
+    .lista-insumos-modal::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    .lista-insumos-modal::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    .lista-insumos-modal::-webkit-scrollbar-thumb:hover { background: #999; }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2"><i class="bi bi-envelope-paper text-primary"></i> Solicitações de Insumos</h1>
+</div>
+
+<!-- Alertas -->
+<% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i> <%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<% } %>
+<% if (typeof success !== 'undefined' && success) { %>
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> <%= success %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<% } %>
+
+<!-- VISÃO 1: PASTAS DAS MALHARIAS -->
+<div id="view-pastas" class="view-section">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="text-secondary m-0"><i class="bi bi-folder2-open"></i> Selecione a Oficina:</h5>
+        <div class="input-group search-box shadow-sm">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar oficina..." onkeyup="pesquisarCards(this, 'grid-malharias')">
+        </div>
+    </div>
+
+    <div class="row g-4" id="grid-malharias">
+        <% malharias.forEach(function(malharia) { %>
+            <% 
+                const msEm3Dias = 3 * 24 * 60 * 60 * 1000;
+                const agora = new Date();
+                
+                const pendentesDaMalharia = solicitacoes.filter(s => s.malharia_id == malharia.id && s.status == 'pendente').length; 
+                const recentesAprovadas = solicitacoes.filter(s => s.malharia_id == malharia.id && s.status === 'aprovada' && (agora - new Date(s.updated_at)) < msEm3Dias).length;
+                const recentesRejeitadas = solicitacoes.filter(s => s.malharia_id == malharia.id && s.status === 'rejeitada' && (agora - new Date(s.updated_at)) < msEm3Dias).length;
+            %>
+            
+            <div class="col-sm-6 col-md-4 col-lg-3 item-pesquisavel" data-search="<%= malharia.nome.toLowerCase() %>">
+                <div class="card h-100 shadow-sm folder-card bg-white position-relative" onclick="abrirHistorico('<%= malharia.id %>', '<%= malharia.nome %>')">
+                    
+                    <!-- Selos de Respostas Recentes (Centralizado no Topo) -->
+                    <div class="position-absolute top-0 start-50 translate-middle-x mt-2 d-flex gap-1 w-100 justify-content-center" style="z-index: 10;">
+                        <% if (recentesAprovadas > 0 && user && (user.cargo === 'monitor' || user.cargo === 'coordenador')) { %>
+                            <span class="badge rounded-pill bg-success pulse-badge-success shadow-sm" style="font-size: 0.75rem;"><i class="bi bi-check-circle-fill"></i> <%= recentesAprovadas %> Aceito(s)</span>
+                        <% } %>
+                        <% if (recentesRejeitadas > 0 && user && (user.cargo === 'monitor' || user.cargo === 'coordenador')) { %>
+                            <span class="badge rounded-pill bg-danger pulse-badge-danger shadow-sm" style="font-size: 0.75rem;"><i class="bi bi-x-circle-fill"></i> <%= recentesRejeitadas %> Recusado(s)</span>
+                        <% } %>
+                    </div>
+
+                    <!-- Bolinha de Pendente da Oficina (Canto Superior Direito) -->
+                    <% if (pendentesDaMalharia > 0) { %>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark border border-light shadow-sm" style="font-size: 0.85rem; z-index: 10;" title="Pedido em Análise pelo Gestor">
+                            <i class="bi bi-hourglass-split"></i> <%= pendentesDaMalharia %> em análise
+                        </span>
+                    <% } %>
+
+                    <div class="card-body text-center d-flex flex-column justify-content-center align-items-center py-4 mt-3">
+                        <i class="bi bi-shop display-4 text-primary mb-3"></i>
+                        <h5 class="fw-bold text-dark mb-1"><%= malharia.nome %></h5>
+                        <small class="text-muted mb-3">Histórico de Pedidos</small>
+                        <div class="mt-auto w-100">
+                            <hr class="my-2 border-primary border-opacity-25">
+                            <span class="text-secondary small fw-bold"><i class="bi bi-folder-symlink"></i> Abrir Histórico</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+</div>
+
+<!-- VISÃO 2: HISTÓRICO DENTRO DA PASTA DA MALHARIA -->
+<% malharias.forEach(function(malharia) { %>
+    <% const solsDestaMalharia = solicitacoes.filter(s => s.malharia_id == malharia.id); %>
+    <% const temPendente = solsDestaMalharia.some(s => s.status === 'pendente'); %>
+    
+    <div id="view-historico-<%= malharia.id %>" class="view-section d-none">
+        <div class="mb-4 d-flex justify-content-between align-items-center border-bottom pb-3 flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary shadow-sm" onclick="voltarParaPastas()">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </button>
+                <h4 class="m-0 fw-bold text-dark">
+                    <i class="bi bi-shop text-primary me-1"></i> <%= malharia.nome %> 
+                    <span class="text-muted fw-normal fs-5 mx-2">/</span> 
+                    <span class="text-secondary"><i class="bi bi-list-task"></i> Histórico</span>
+                </h4>
+            </div>
+
+            <div class="d-flex gap-2">
+                <div class="input-group search-box shadow-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar solicitação aqui..." onkeyup="pesquisarTabela(this, 'tabela-sols-<%= malharia.id %>')">
+                </div>
+                
+                <% if (user && (user.cargo === 'monitor' || user.cargo === 'coordenador')) { %>
+                    <% if (temPendente) { %>
+                        <button type="button" class="btn btn-secondary shadow-sm fw-bold text-nowrap" disabled title="Você já possui uma solicitação em análise.">
+                            <i class="bi bi-lock-fill"></i> Aguardando Retorno
+                        </button>
+                    <% } else { %>
+                        <button type="button" class="btn btn-success shadow-sm fw-bold text-nowrap" onclick="abrirModalNovaSolicitacao('<%= malharia.id %>')">
+                            <i class="bi bi-plus-lg"></i> Novo Pedido
+                        </button>
+                    <% } %>
+                <% } %>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="tabela-sols-<%= malharia.id %>">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th class="ps-4">Data / Status</th>
+                                <th>Itens Solicitados</th>
+                                <th>Justificativa / Motivo</th>
+                                <th>Resposta do Gestor</th>
+                                <% if (user && user.nivel >= 3) { %>
+                                    <th class="text-end pe-4">Ação</th>
+                                <% } %>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (solsDestaMalharia.length === 0) { %>
+                                <tr class="no-results-row">
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="bi bi-envelope-open display-4 d-block mb-3 opacity-50"></i>
+                                        Nenhuma solicitação encontrada para esta malharia.
+                                    </td>
+                                </tr>
+                            <% } %>
+                            <% solsDestaMalharia.forEach(sol => { %>
+                                <% 
+                                    const msEm3Dias = 3 * 24 * 60 * 60 * 1000;
+                                    const isNovaResposta = sol.status !== 'pendente' && (new Date() - new Date(sol.updated_at)) < msEm3Dias;
+                                %>
+                                <tr class="linha-busca <%= isNovaResposta && (user.cargo === 'monitor' || user.cargo === 'coordenador') ? 'bg-primary bg-opacity-10' : '' %>" data-search="<%= sol.categoria.toLowerCase() %> <%= sol.justificativa.toLowerCase() %> <%= (sol.itens_solicitados || []).join(' ').toLowerCase() %>">
+                                    <td class="ps-4" style="min-width: 140px;">
+                                        <span class="fw-bold d-block text-dark"><%= new Date(sol.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) %></span>
+                                        <% if (sol.status === 'pendente') { %>
+                                            <span class="badge bg-warning text-dark mt-1 shadow-sm"><i class="bi bi-hourglass-split"></i> Em Análise</span>
+                                        <% } else if (sol.status === 'aprovada') { %>
+                                            <span class="badge bg-success mt-1 shadow-sm"><i class="bi bi-check-circle"></i> Aprovado</span>
+                                        <% } else { %>
+                                            <span class="badge bg-danger mt-1 shadow-sm"><i class="bi bi-x-circle"></i> Rejeitado</span>
+                                        <% } %>
+                                    </td>
+                                    
+                                    <td style="min-width: 200px;">
+                                        <% if (sol.itens_solicitados && sol.itens_solicitados.length > 0) { %>
+                                            <div class="small fw-bold text-dark mt-1" style="line-height: 1.6;">
+                                                <% sol.itens_solicitados.forEach(item => { %>
+                                                    <span class="badge bg-light text-dark border border-secondary shadow-sm me-1 mb-1" style="white-space: normal; text-align: left;"><i class="bi bi-box-seam text-secondary"></i> <%= item %></span>
+                                                <% }) %>
+                                            </div>
+                                        <% } else { %>
+                                            <span class="text-muted small fst-italic">Nenhum item detalhado</span>
+                                        <% } %>
+                                    </td>
+                                    
+                                    <td style="min-width: 250px; max-width: 400px; white-space: normal; padding-top: 15px; padding-bottom: 15px;">
+                                        <div class="fw-bold text-dark"><%= sol.justificativa %></div>
+                                        <% if (sol.observacao) { %><small class="text-muted d-block mt-2"><b class="text-secondary">Obs:</b> <%= sol.observacao %></small><% } %>
+                                    </td>
+                                    
+                                    <td style="min-width: 280px; max-width: 450px; white-space: normal; padding-top: 15px; padding-bottom: 15px;">
+                                        <% if (sol.status === 'pendente') { %>
+                                            <small class="text-muted fst-italic">Aguardando análise do gestor...</small>
+                                        <% } else { %>
+                                            <div class="p-3 rounded bg-white border position-relative shadow-sm" style="font-size: 0.85rem;">
+                                                
+                                                <% if (isNovaResposta && (user.cargo === 'monitor' || user.cargo === 'coordenador')) { %>
+                                                    <div class="mb-3 d-flex align-items-center gap-2">
+                                                        <% if (sol.status === 'aprovada') { %>
+                                                            <span class="badge rounded-pill bg-success pulse-badge-success shadow-sm"><i class="bi bi-check-circle-fill small me-1"></i> Pedido Aceito</span>
+                                                        <% } else { %>
+                                                            <span class="badge rounded-pill bg-danger pulse-badge-danger shadow-sm"><i class="bi bi-x-circle-fill small me-1"></i> Pedido Recusado</span>
+                                                        <% } %>
+                                                        <span class="text-muted small fst-italic">Resposta nova!</span>
+                                                    </div>
+                                                <% } %>
+
+                                                <b class="<%= sol.status === 'aprovada' ? 'text-success' : 'text-danger' %> d-block mb-2">
+                                                    <i class="bi <%= sol.status === 'aprovada' ? 'bi-check-lg' : 'bi-x-lg' %> me-1"></i> <%= sol.resposta_gestor %>
+                                                </b>
+                                                
+                                                <% if (sol.status === 'aprovada' && sol.prazo_entrega) { %>
+                                                    <hr class="my-2 opacity-25">
+                                                    <span class="text-muted"><i class="bi bi-calendar-check text-secondary"></i> Previsão de Entrega: <b class="text-dark fs-6"><%= new Date(sol.prazo_entrega).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) %></b></span>
+                                                <% } %>
+                                            </div>
+                                        <% } %>
+                                    </td>
+                                    
+                                    <% if (user && user.nivel >= 3) { %>
+                                        <td class="text-end pe-4 text-nowrap">
+                                            <% if (sol.status === 'pendente') { %>
+                                                <button class="btn btn-sm btn-primary shadow-sm me-1" onclick="abrirModalResposta('<%= sol.id %>', '<%= sol.malharia.nome %>', '<%= sol.justificativa.replace(/'/g, "\\'") %>')">
+                                                    <i class="bi bi-reply-fill"></i> Responder
+                                                </button>
+                                            <% } else { %>
+                                                <span class="text-muted small me-2"><i class="bi bi-check2-all"></i> Analisado</span>
+                                            <% } %>
+                                            
+                                            <% if (user.cargo === 'admin') { %>
+                                                <button class="btn btn-sm btn-outline-danger shadow-sm border-0" onclick="abrirModalExcluir('<%= sol.id %>')" title="Excluir do Histórico">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            <% } %>
+                                        </td>
+                                    <% } %>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+<% }); %>
+
+<% if (user && (user.cargo === 'monitor' || user.cargo === 'coordenador')) { %>
+<div class="modal fade" id="novaSolicitacaoModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <form class="modal-content shadow border-0" action="/solicitacoes/novo" method="POST">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-envelope-plus"></i> Formular Novo Pedido de Insumos</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" name="malharia_id" id="modalMalhariaIdInput">
+
+                <div class="alert alert-info small border-info shadow-sm mb-4">
+                    <i class="bi bi-info-circle-fill"></i> É permitido apenas <b>1 (um)</b> pedido em análise por oficina. Você pode marcar quantos tecidos e aviamentos precisar neste mesmo pedido.
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-secondary fw-bold small text-uppercase mb-2"><i class="bi bi-ui-checks"></i> Selecione os Produtos Desejados *</label>
+                    
+                    <div class="input-group input-group-sm mb-3 shadow-sm" style="max-width: 400px;">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" class="form-control border-start-0" id="searchInsumosModal" placeholder="Buscar por tecido ou aviamento..." onkeyup="filtrarInsumosModal()">
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light shadow-sm h-100">
+                                <h6 class="fw-bold text-success mt-1 border-bottom pb-2"><i class="bi bi-layers-half"></i> Tecidos e Malhas</h6>
+                                <div class="lista-insumos-modal pe-2" style="max-height: 220px; overflow-y: auto; overflow-x: hidden;">
+                                    <% catalogo.filter(c => c.categoria === 'tecido').forEach(item => { %>
+                                        <div class="form-check mb-2 item-checkbox-modal" data-nome="<%= item.nome.toLowerCase() %>">
+                                            <input class="form-check-input border-success" type="checkbox" name="itens_solicitados[]" value="<%= item.nome %>" id="check-<%= item.id %>">
+                                            <label class="form-check-label text-dark fw-bold" for="check-<%= item.id %>" style="font-size: 0.9rem; cursor: pointer;"><%= item.nome %></label>
+                                        </div>
+                                    <% }) %>
+                                    <% if(catalogo.filter(c => c.categoria === 'tecido').length === 0) { %>
+                                        <span class="text-muted small fst-italic">Nenhum tecido no catálogo.</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light shadow-sm h-100">
+                                <h6 class="fw-bold mt-1 border-bottom pb-2" style="color: #6f42c1;"><i class="bi bi-paperclip"></i> Aviamentos</h6>
+                                <div class="lista-insumos-modal pe-2" style="max-height: 220px; overflow-y: auto; overflow-x: hidden;">
+                                    <% catalogo.filter(c => c.categoria === 'aviamento').forEach(item => { %>
+                                        <div class="form-check mb-2 item-checkbox-modal" data-nome="<%= item.nome.toLowerCase() %>">
+                                            <input class="form-check-input" type="checkbox" name="itens_solicitados[]" value="<%= item.nome %>" id="check-<%= item.id %>" style="border-color: #6f42c1;">
+                                            <label class="form-check-label text-dark fw-bold" for="check-<%= item.id %>" style="font-size: 0.9rem; cursor: pointer;"><%= item.nome %></label>
+                                        </div>
+                                    <% }) %>
+                                    <% if(catalogo.filter(c => c.categoria === 'aviamento').length === 0) { %>
+                                        <span class="text-muted small fst-italic">Nenhum aviamento no catálogo.</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label text-secondary fw-bold small text-uppercase">Justificativa da Necessidade *</label>
+                        <textarea class="form-control border-success shadow-sm" name="justificativa" rows="3" placeholder="Ex: Precisamos dos materiais para iniciar a produção do processo 1234/2026..." required></textarea>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label text-secondary fw-bold small text-uppercase">Observações Adicionais / Especificações</label>
+                        <textarea class="form-control shadow-sm" name="observacao" rows="2" placeholder="Ex: Caso não tenha linha preta, enviem azul escuro."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success fw-bold">Enviar para o Gestor</button>
+            </div>
+        </form>
+    </div>
+</div>
+<% } %>
+
+<% if (user && user.nivel >= 3) { %>
+<!-- Modal Resposta (Para Gestores) -->
+<div class="modal fade" id="modalResponder" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content shadow border-0" id="formResponder" method="POST">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-reply-fill"></i> Responder Solicitação</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3 p-3 bg-light border rounded shadow-sm">
+                    <h6 class="fw-bold text-primary mb-2" id="respMalharia"></h6>
+                    <p class="mb-0 text-dark fst-italic" id="respJustificativa"></p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-secondary fw-bold small text-uppercase">Decisão do Gestor *</label>
+                    <select class="form-select border-primary fw-bold shadow-sm" name="status" id="selectStatusResp" required onchange="togglePrazo()">
+                        <option value="aprovada" class="text-success">✅ Aprovar Envio / Confirmar</option>
+                        <option value="rejeitada" class="text-danger">❌ Rejeitar / Negar Pedido</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3" id="divPrazo">
+                    <label class="form-label text-secondary fw-bold small text-uppercase">Prazo / Previsão de Entrega</label>
+                    <input type="date" class="form-control shadow-sm" name="prazo_entrega">
+                    <div class="form-text small">Opcional. Informe à oficina quando a mercadoria deverá chegar.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-secondary fw-bold small text-uppercase">Mensagem de Resposta *</label>
+                    <textarea class="form-control border-primary shadow-sm" name="resposta_gestor" rows="3" placeholder="Ex: Pedido aprovado, despacharemos amanhã de manhã." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary fw-bold">Enviar Resposta</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<% if (user.cargo === 'admin') { %>
+<!-- Modal Exclusão (Para Admin) -->
+<div class="modal fade" id="modalExcluirSolicitacao" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content shadow" id="formExcluir" method="POST">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold">Excluir Solicitação</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-trash text-danger display-4 d-block mb-3"></i>
+                <p>Tem a certeza que deseja apagar permanentemente este pedido do histórico?</p>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-danger fw-bold">Sim, Excluir</button>
+            </div>
+        </form>
+    </div>
+</div>
+<% } %>
+
+<% } %>
+
+<script>
+    function ocultarTodasAsTelas() {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none'));
+        document.querySelectorAll('.search-box input').forEach(input => input.value = '');
+    }
+
+    function pesquisarCards(inputElement, containerId) {
+        const termo = inputElement.value.toLowerCase().trim();
+        const container = document.getElementById(containerId);
+        container.querySelectorAll('.item-pesquisavel').forEach(card => {
+            card.style.display = card.getAttribute('data-search').includes(termo) ? '' : 'none';
+        });
+    }
+
+    function pesquisarTabela(inputElement, tabelaId) {
+        const termo = inputElement.value.toLowerCase().trim();
+        const linhas = document.querySelectorAll(`#${tabelaId} .linha-busca`);
+        
+        linhas.forEach(linha => {
+            const dataSearch = linha.getAttribute('data-search') || '';
+            linha.style.display = dataSearch.includes(termo) ? '' : 'none';
+        });
+    }
+
+    function voltarParaPastas() {
+        ocultarTodasAsTelas();
+        document.getElementById('view-pastas').classList.remove('d-none');
+    }
+
+    function abrirHistorico(malhariaId) {
+        ocultarTodasAsTelas();
+        document.getElementById('view-historico-' + malhariaId).classList.remove('d-none');
+    }
+
+    function filtrarInsumosModal() {
+        const termo = document.getElementById('searchInsumosModal').value.toLowerCase().trim();
+        document.querySelectorAll('.item-checkbox-modal').forEach(div => {
+            const nome = div.getAttribute('data-nome');
+            if (nome.includes(termo)) {
+                div.style.display = 'block';
+            } else {
+                div.style.display = 'none';
+            }
+        });
+    }
+
+    function abrirModalNovaSolicitacao(malhariaId) {
+        document.getElementById('modalMalhariaIdInput').value = malhariaId;
+        new bootstrap.Modal(document.getElementById('novaSolicitacaoModal')).show();
+    }
+
+    function abrirModalResposta(id, malharia, justificativa) {
+        document.getElementById('formResponder').action = '/solicitacoes/' + id + '/responder';
+        document.getElementById('respMalharia').innerText = malharia;
+        document.getElementById('respJustificativa').innerText = '"' + justificativa + '"';
+        new bootstrap.Modal(document.getElementById('modalResponder')).show();
+    }
+
+    function abrirModalExcluir(id) {
+        document.getElementById('formExcluir').action = '/solicitacoes/' + id + '/excluir';
+        new bootstrap.Modal(document.getElementById('modalExcluirSolicitacao')).show();
+    }
+
+    function togglePrazo() {
+        const status = document.getElementById('selectStatusResp').value;
+        const divPrazo = document.getElementById('divPrazo');
+        if (divPrazo) {
+            divPrazo.style.display = status === 'rejeitada' ? 'none' : 'block';
+        }
+    }
+</script>

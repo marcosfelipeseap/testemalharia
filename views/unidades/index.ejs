@@ -1,0 +1,283 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+    .map-label {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #999;
+        border-radius: 4px;
+        padding: 2px 5px;
+        font-weight: bold;
+        font-size: 12px;
+        box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gerenciar Unidades</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button onclick="configurarMapa('todos')" class="btn btn-sm btn-outline-success me-2">
+            <i class="bi bi-globe-americas"></i> Ver Todas no Mapa
+        </button>
+        <a href="/unidades/create" class="btn btn-sm btn-primary">
+            <i class="bi bi-building-add"></i> Nova Unidade
+        </a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body p-2">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+            <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Digite para buscar unidade, cidade ou responsável..." autocomplete="off">
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Nome</th>
+                <th>Localização</th>
+                <th>Responsável</th>
+                <th>Capacidade</th>
+                <th>Telefone</th>
+                <th class="text-end">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (typeof unidades !== 'undefined' && unidades.length > 0) { %>
+                <% unidades.forEach(function(unidade) { %>
+                    <tr class="linha-unidade">
+                        <td class="busca-nome"><strong><%= unidade.nome %></strong></td>
+                        <td class="busca-local">
+                            <div><%= unidade.cidade %> <small class="text-muted">(<%= unidade.cep %>)</small></div>
+                            <small class="text-muted"><%= unidade.endereco %></small>
+                            
+                            <div class="mt-1">
+                                <% if (unidade.lat && unidade.lon) { %>
+                                    <button onclick='configurarMapa("individual", <%= JSON.stringify(unidade) %>)' 
+                                            class="badge bg-primary border-0 text-white" 
+                                            style="cursor: pointer;">
+                                        <i class="bi bi-geo-alt-fill"></i> Ver no Mapa
+                                    </button>
+                                <% } else { %>
+                                    <span class="badge bg-warning text-dark status-geo" 
+                                          data-id="<%= unidade.id %>" 
+                                          data-cep="<%= unidade.cep %>">
+                                        <span class="spinner-border spinner-border-sm" style="width:0.7em; height:0.7em;"></span> Buscando...
+                                    </span>
+                                <% } %>
+                            </div>
+                        </td>
+                        <td class="busca-resp"><%= unidade.responsavel || '-' %></td>
+                        <td><%= unidade.capacidade || '-' %></td>
+                        <td><%= unidade.telefone || '-' %></td>
+                        <td class="text-end">
+                            <a href="/unidades/<%= unidade.id %>/edit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="confirmarExclusao('<%= unidade.id %>', '<%= unidade.nome %>')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                <% }); %>
+            <% } else { %>
+                <tr>
+                    <td colspan="6" class="text-center py-3">Nenhuma unidade cadastrada.</td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="modalMapa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloModalMapa"><i class="bi bi-map"></i> Mapa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="mapaView" style="height: 550px; width: 100%;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalExclusao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir a unidade <strong id="nomeUnidadeExclusao"></strong>?</p>
+                <p class="text-muted small">Esta ação não poderá ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExclusao" action="" method="POST">
+                    <button type="submit" class="btn btn-danger">Sim, Excluir</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- DADOS GLOBAIS ---
+    const unidades = <%- JSON.stringify(unidades || []) %>;
+    let map = null;
+    let markersLayer = new L.LayerGroup();
+    
+    let mapaModoAtual = 'todos'; 
+    let mapaUnidadeAtual = null;
+
+    // --- 1. CONFIGURAÇÃO DO MAPA ---
+    function configurarMapa(modo, dadosUnidade = null) {
+        mapaModoAtual = modo;
+        mapaUnidadeAtual = dadosUnidade;
+
+        const titulo = document.getElementById('tituloModalMapa');
+        titulo.innerHTML = modo === 'todos' 
+            ? '<i class="bi bi-globe-americas"></i> Mapa Geral das Unidades' 
+            : `<i class="bi bi-geo-alt-fill"></i> Localização: ${dadosUnidade.nome}`;
+
+        const modalEl = document.getElementById('modalMapa');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    // Evento ao abrir o Modal
+    const modalMapaEl = document.getElementById('modalMapa');
+    modalMapaEl.addEventListener('shown.bs.modal', function () {
+        
+        if (!map) {
+            map = L.map('mapaView');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+            markersLayer.addTo(map);
+        }
+
+        // Delay crítico para renderização correta
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+
+        markersLayer.clearLayers();
+
+        if (mapaModoAtual === 'todos') {
+            const bounds = L.latLngBounds();
+            let count = 0;
+
+            unidades.forEach(u => {
+                if (u.lat && u.lon) {
+                    const marker = criarMarcador(u);
+                    
+                    // --- AQUI ESTÁ A MÁGICA: ETIQUETA COM NOME ---
+                    marker.bindTooltip(u.nome, {
+                        permanent: true,     // Sempre visível
+                        direction: 'top',    // Aparece em cima do pino
+                        className: 'map-label', // Estilo CSS definido no topo
+                        offset: [0, -10]     // Pequeno ajuste de altura
+                    });
+                    // ---------------------------------------------
+
+                    markersLayer.addLayer(marker);
+                    bounds.extend([u.lat, u.lon]);
+                    count++;
+                }
+            });
+
+            if (count > 0) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            } else {
+                map.setView([-14.235, -51.925], 4);
+            }
+
+        } else if (mapaModoAtual === 'individual' && mapaUnidadeAtual) {
+            const u = mapaUnidadeAtual;
+            const marker = criarMarcador(u);
+            markersLayer.addLayer(marker);
+            
+            // No individual, abrimos o balão de detalhes
+            marker.openPopup();
+            map.setView([u.lat, u.lon], 16);
+        }
+    });
+
+    function criarMarcador(u) {
+        return L.marker([u.lat, u.lon]).bindPopup(`
+            <div class="text-center">
+                <strong>${u.nome}</strong><br>
+                ${u.cidade} - ${u.cep}<br>
+                <small>${u.responsavel || ''}</small>
+            </div>
+        `);
+    }
+
+    // --- 2. BUSCA INSTANTÂNEA ---
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        const termo = this.value.toLowerCase();
+        document.querySelectorAll('.linha-unidade').forEach(linha => {
+            const texto = linha.innerText.toLowerCase();
+            linha.style.display = texto.includes(termo) ? '' : 'none';
+        });
+    });
+
+    // --- 3. EXCLUSÃO ---
+    function confirmarExclusao(id, nome) {
+        document.getElementById('nomeUnidadeExclusao').innerText = nome;
+        document.getElementById('formExclusao').action = `/unidades/${id}/delete`;
+        new bootstrap.Modal(document.getElementById('modalExclusao')).show();
+    }
+
+    // --- 4. AUTO-BUSCA DE CEP ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const pendentes = document.querySelectorAll('.status-geo');
+        
+        async function processarFila(index) {
+            if (index >= pendentes.length) return;
+            const el = pendentes[index];
+            const id = el.getAttribute('data-id');
+            const cep = el.getAttribute('data-cep');
+
+            if (!cep) return processarFila(index + 1);
+
+            try {
+                const cepLimpo = cep.replace(/\D/g, '');
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${cepLimpo}&country=Brazil&format=json&limit=1`);
+                const data = await res.json();
+
+                if (data && data.length > 0) {
+                    await fetch(`/unidades/${id}/save-coords`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lat: data[0].lat, lon: data[0].lon })
+                    });
+                    
+                    el.parentElement.innerHTML = `
+                        <button onclick='window.location.reload()' class="badge bg-success border-0 text-white">
+                            <i class="bi bi-check"></i> (Recarregar)
+                        </button>`;
+                } else {
+                    el.className = 'badge bg-danger';
+                    el.innerText = 'CEP não achado';
+                }
+            } catch (e) { console.error(e); }
+
+            setTimeout(() => processarFila(index + 1), 1500);
+        }
+
+        if (pendentes.length > 0) processarFila(0);
+    });
+</script>

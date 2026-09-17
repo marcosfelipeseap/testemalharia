@@ -1,0 +1,106 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-clock-history"></i> Histórico de Entradas e Usos</h1>
+    <div>
+        <a href="/tintas-bobinas" class="btn btn-outline-secondary shadow-sm">
+            <i class="bi bi-arrow-left"></i> Voltar ao Estoque
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-top border-primary border-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Data</th>
+                        <th>Operação</th>
+                        <th>Item (Base)</th>
+                        <th>Variação</th>
+                        <th class="text-center">Quantidade</th>
+                        <th>Fornecedor / Origem</th>
+                        <th>Usuário (Lançamento)</th>
+                        <th class="text-center pe-4" style="width: 80px;">Desfazer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (movimentacoes.length === 0) { %>
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i> 
+                                Nenhum lançamento registrado no sistema.
+                            </td>
+                        </tr>
+                    <% } else { %>
+                        <% movimentacoes.forEach(mov => { %>
+                            <tr>
+                                <td class="ps-4 fw-bold">
+                                    <%= new Date(mov.data_movimentacao).toISOString().split('T')[0].split('-').reverse().join('/') %>
+                                </td>
+                                <td>
+                                    <% if (mov.tipo === 'entrada') { %>
+                                        <span class="badge bg-success rounded-pill"><i class="bi bi-arrow-down-left"></i> Entrada</span>
+                                    <% } else { %>
+                                        <span class="badge bg-warning text-dark rounded-pill"><i class="bi bi-arrow-up-right"></i> Uso</span>
+                                    <% } %>
+                                </td>
+                                <td class="fw-bold">
+                                    <%= mov.grupo && mov.grupo.item ? mov.grupo.item.nome : 'Item Excluído' %>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border shadow-sm">
+                                        <%= mov.grupo ? mov.grupo.nome : 'Grupo Excluído' %>
+                                    </span>
+                                </td>
+                                <td class="text-center fw-bold fs-6 <%= mov.tipo === 'entrada' ? 'text-success' : 'text-danger' %>">
+                                    <%= mov.tipo === 'entrada' ? '+' : '-' %> <%= mov.quantidade %>
+                                </td>
+                                <td class="text-muted small fst-italic">
+                                    <%= mov.tipo === 'entrada' ? (mov.fornecedor || 'Não informado') : 'Consumo Interno' %>
+                                </td>
+                                <td class="small text-secondary">
+                                    <i class="bi bi-person-circle text-primary"></i> <%= mov.usuario ? mov.usuario.nome : 'Sistema' %>
+                                </td>
+                                <td class="text-center pe-4">
+                                    <button class="btn btn-sm btn-outline-danger border-0 shadow-sm" title="Excluir Lançamento (Devolve o saldo ao Estoque)" onclick="confirmarExclusao('/tintas-bobinas/movimentacoes/<%= mov.id %>/delete')">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmação de Exclusão (Reverter) -->
+<div class="modal fade" id="modalConfirmDelete" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle"></i> Desfazer Ação</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                Deseja excluir este lançamento?<br>
+                <small class="text-danger fw-bold mt-2 d-block">O sistema irá recalcular o estoque da variação automaticamente.</small>
+            </div>
+            <div class="modal-footer py-1 justify-content-center">
+                <form id="formDeleteAction" method="POST" class="m-0 p-0">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-3">Sim, Desfazer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script>
+    function confirmarExclusao(url) {
+        document.getElementById('formDeleteAction').action = url;
+        new bootstrap.Modal(document.getElementById('modalConfirmDelete')).show();
+    }
+</script>

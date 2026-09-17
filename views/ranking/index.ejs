@@ -1,0 +1,228 @@
+<style>
+    .podium-container { display: flex; align-items: flex-end; justify-content: center; gap: 12px; margin-top: 60px; margin-bottom: 40px; }
+    .podium-box { width: 160px; border-radius: 12px 12px 0 0; text-align: center; color: white; position: relative; box-shadow: 0 -5px 15px rgba(0,0,0,0.15); padding: 45px 10px 15px; display: flex; flex-direction: column; justify-content: space-between; }
+    .podium-1 { height: 260px; background: linear-gradient(180deg, #ffc107 0%, #d39e00 100%); z-index: 3;}
+    .podium-2 { height: 210px; background: linear-gradient(180deg, #adb5bd 0%, #6c757d 100%); z-index: 2;}
+    .podium-3 { height: 170px; background: linear-gradient(180deg, #e48f56 0%, #b85e26 100%); z-index: 1;}
+    
+    .podium-avatar { width: 75px; height: 75px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; position: absolute; top: -37px; left: 50%; transform: translateX(-50%); box-shadow: 0 5px 10px rgba(0,0,0,0.2); border: 5px solid; }
+    .podium-1 .podium-avatar { border-color: #ffc107; color: #ffc107; }
+    .podium-2 .podium-avatar { border-color: #adb5bd; color: #6c757d; }
+    .podium-3 .podium-avatar { border-color: #e48f56; color: #b85e26; }
+    
+    .podium-name { font-weight: 800; font-size: 0.95rem; text-transform: uppercase; line-height: 1.2; margin-bottom: auto; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-word;}
+    .podium-score { font-size: 1.6rem; font-weight: 900; background: rgba(255,255,255,0.25); border-radius: 8px; padding: 5px; margin: 10px 0 5px;}
+    .podium-prod { font-size: 0.8rem; font-weight: 600; opacity: 0.9; }
+    .podium-pos { font-size: 1.5rem; font-weight: 900; opacity: 0.4; line-height: 1; margin-top: 5px; }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 text-uppercase fw-bold text-primary"><i class="bi bi-bar-chart-fill"></i> Ranking Geral de Performance</h1>
+    
+    <form class="d-flex gap-2" method="GET" action="/ranking">
+        <select class="form-select border-primary fw-bold text-primary shadow-sm" name="mes" style="width: 150px;">
+            <% const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']; %>
+            <% meses.forEach((m, idx) => { %>
+                <option value="<%= idx + 1 %>" <%= mesAtual === (idx + 1) ? 'selected' : '' %>><%= m %></option>
+            <% }); %>
+        </select>
+        <select class="form-select border-primary fw-bold text-primary shadow-sm" name="ano" style="width: 110px;">
+            <% const anoAtualSist = new Date().getFullYear(); %>
+            <% for(let i = anoAtualSist; i >= 2024; i--) { %>
+                <option value="<%= i %>" <%= anoAtual === i ? 'selected' : '' %>><%= i %></option>
+            <% } %>
+        </select>
+        <button class="btn btn-primary shadow-sm" type="submit"><i class="bi bi-search"></i> Filtrar</button>
+    </form>
+</div>
+
+<% if (ranking.length === 0) { %>
+    <div class="alert alert-secondary text-center py-5">
+        <i class="bi bi-emoji-frown fs-1 d-block mb-3 text-muted"></i>
+        <h4>Sem Produção Registrada</h4>
+        <p>Não há dados válidos de produção ou metas para o mês selecionado.</p>
+    </div>
+<% } else { %>
+    
+    <% if (ranking.length >= 1) { %>
+    <div class="podium-container">
+        
+        <% if (ranking[1]) { %>
+        <div class="podium-box podium-2">
+            <div class="podium-avatar"><i class="bi bi-award-fill"></i></div>
+            <div class="podium-name" title="<%= ranking[1].nome %>"><%= ranking[1].nome %></div>
+            <div class="podium-score"><%= ranking[1].performance %>%</div>
+            <div class="podium-prod"><%= ranking[1].totalProduzido %> un</div>
+            <div class="podium-pos">2</div>
+        </div>
+        <% } %>
+
+        <div class="podium-box podium-1">
+            <div class="podium-avatar"><i class="bi bi-trophy-fill"></i></div>
+            <div class="podium-name" title="<%= ranking[0].nome %>"><%= ranking[0].nome %></div>
+            <div class="podium-score"><%= ranking[0].performance %>%</div>
+            <div class="podium-prod"><%= ranking[0].totalProduzido %> un</div>
+            <div class="podium-pos">1</div>
+        </div>
+
+        <% if (ranking[2]) { %>
+        <div class="podium-box podium-3">
+            <div class="podium-avatar"><i class="bi bi-award-fill"></i></div>
+            <div class="podium-name" title="<%= ranking[2].nome %>"><%= ranking[2].nome %></div>
+            <div class="podium-score"><%= ranking[2].performance %>%</div>
+            <div class="podium-prod"><%= ranking[2].totalProduzido %> un</div>
+            <div class="podium-pos">3</div>
+        </div>
+        <% } %>
+
+    </div>
+    <% } %>
+
+    <div class="card shadow-sm border-0 border-top border-primary border-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-ol"></i> Tabela Completa do Mês</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;">Posição</th>
+                            <th class="text-start">Malharia</th>
+                            <th>Total Produzido</th>
+                            <th>Meta Válida</th>
+                            <th>Faltas</th>
+                            <th>Performance</th>
+                            <% if (user.nivel >= 3) { %>
+                                <th style="width: 120px;">Auditoria</th>
+                            <% } %>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% ranking.forEach((rank, idx) => { %>
+                            <tr class="<%= idx === 0 ? 'table-warning' : (idx === 1 ? 'table-secondary' : (idx === 2 ? 'table-danger' : '')) %>">
+                                <td>
+                                    <span class="badge <%= idx < 3 ? 'bg-dark' : 'bg-light text-dark border' %> rounded-circle p-2 px-3 fs-6">
+                                        <%= idx + 1 %>º
+                                    </span>
+                                </td>
+                                <td class="text-start fw-bold fs-5 text-dark"><%= rank.nome %></td>
+                                <td class="fw-bold text-success"><%= rank.totalProduzido %> un</td>
+                                <td class="text-muted"><%= rank.totalMeta %> un</td>
+                                <td>
+                                    <% if (rank.diasNaoRegistrados > 0) { %>
+                                        <span class="badge bg-danger rounded-pill"><%= rank.diasNaoRegistrados %> dia(s)</span>
+                                    <% } else { %>
+                                        <span class="text-muted">-</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <span class="badge <%= rank.performance >= 100 ? 'bg-success' : 'bg-primary' %> fs-5 px-3 py-2 shadow-sm">
+                                        <%= rank.performance %>%
+                                    </span>
+                                </td>
+                                <% if (user.nivel >= 3) { %>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalDetalhes<%= rank.id %>">
+                                            <i class="bi bi-search"></i> Ver
+                                        </button>
+                                    </td>
+                                <% } %>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-light text-muted small text-center py-3">
+                <i class="bi bi-info-circle text-primary"></i> <strong>Nota:</strong> Dias úteis sem envio de relatório são penalizados com a meta média e 0% de produção.<br>Finais de semana, feriados ou faltas de insumo são automaticamente isentos.
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAIS DE DETALHES (SOMENTE GESTORES) -->
+    <% if (user.nivel >= 3) { %>
+        <% ranking.forEach(rank => { %>
+            <div class="modal fade" id="modalDetalhes<%= rank.id %>" tabindex="-1">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title fw-bold"><i class="bi bi-clipboard2-data"></i> Detalhes: <%= rank.nome %></h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            
+                            <!-- Resumo do Modal -->
+                            <div class="bg-light p-3 border-bottom d-flex justify-content-around flex-wrap gap-2 text-center">
+                                <div><small class="text-muted d-block">Meta Válida (Mês)</small> <span class="fw-bold fs-5"><%= rank.totalMeta %></span></div>
+                                <div><small class="text-muted d-block">Total Produzido</small> <span class="fw-bold fs-5 text-success"><%= rank.totalProduzido %></span></div>
+                                <div>
+                                    <small class="text-muted d-block">Dias s/ Registro</small> 
+                                    <span class="badge <%= rank.diasNaoRegistrados > 0 ? 'bg-danger' : 'bg-success' %> fs-6"><%= rank.diasNaoRegistrados %> dia(s)</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block">Falta de Insumo</small> 
+                                    <span class="badge <%= rank.diasFaltaInsumo > 0 ? 'bg-warning text-dark' : 'bg-secondary' %> fs-6"><%= rank.diasFaltaInsumo %> dia(s)</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Tabela Histórico -->
+                            <div class="table-responsive">
+                                <table class="table table-sm text-center mb-0 align-middle">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Meta Exigida</th>
+                                            <th>Produção</th>
+                                            <th>Justificativa</th>
+                                            <th>Impacto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (rank.detalhes && rank.detalhes.length > 0) { %>
+                                            <% rank.detalhes.forEach(d => { %>
+                                                <tr class="<%= d.isFaltaRegistro ? 'table-danger' : (!d.valido ? 'table-warning text-muted' : '') %> border-bottom">
+                                                    <td class="fw-bold"><%= d.data_registro.split('-').reverse().join('/') %></td>
+                                                    <td><%= d.meta %></td>
+                                                    
+                                                    <td class="<%= d.produzido >= d.meta && d.valido && !d.isFaltaRegistro ? 'text-success fw-bold' : '' %>">
+                                                        <%= d.produzido %>
+                                                    </td>
+                                                    
+                                                    <td>
+                                                        <% if (d.isFaltaRegistro) { %>
+                                                            <span class="badge bg-danger"><i class="bi bi-exclamation-octagon"></i> Faltou Registro</span>
+                                                        <% } else if (d.justificativa !== '-') { %>
+                                                            <span class="badge bg-secondary"><%= d.justificativa %></span>
+                                                        <% } else { %>
+                                                            -
+                                                        <% } %>
+                                                    </td>
+                                                    
+                                                    <td>
+                                                        <% if (d.isFaltaRegistro) { %>
+                                                            <span class="text-danger fw-bold">Penalizado (0%)</span>
+                                                        <% } else if (d.valido) { %>
+                                                            <span class="text-success"><i class="bi bi-check-circle"></i> Computado</span>
+                                                        <% } else { %>
+                                                            <span class="text-muted"><i class="bi bi-dash-circle"></i> Abonado</span>
+                                                        <% } %>
+                                                    </td>
+                                                </tr>
+                                            <% }) %>
+                                        <% } else { %>
+                                            <tr><td colspan="5" class="text-muted py-4">Sem registros diários para avaliar.</td></tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Fechar Auditoria</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } %>
+
+<% } %>

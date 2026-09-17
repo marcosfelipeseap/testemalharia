@@ -1,0 +1,320 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-droplet-half"></i> Tintas e Bobinas</h1>
+    <div>
+        <a href="/tintas-bobinas/movimentacoes" class="btn btn-outline-secondary shadow-sm me-2">
+            <i class="bi bi-clock-history"></i> Histórico Global
+        </a>
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalItem">
+            <i class="bi bi-plus-lg"></i> Novo Item
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <% if (itens.length === 0) { %>
+        <div class="col-12 text-center py-5 text-muted">
+            <i class="bi bi-box-seam fs-1 d-block mb-3"></i>
+            <h5>Nenhum item cadastrado.</h5>
+            <p>Comece clicando em "Novo Item" (ex: Tinta Sublimática, Bobina de Papel).</p>
+        </div>
+    <% } else { %>
+        <% itens.forEach(item => { %>
+            <div class="col-12 mb-4">
+                <div class="card shadow border-top border-primary border-3">
+                    <!-- CABEÇALHO DO ITEM -->
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <div>
+                            <h4 class="card-title fw-bold text-dark mb-0"><%= item.nome %></h4>
+                            <small class="text-muted"><i class="bi bi-bell-fill text-warning"></i> Aviso de Estoque Baixo a partir de: <strong><%= item.estoque_minimo %> unidades</strong></small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-success" onclick="abrirModalGrupo('<%= item.id %>', '<%= item.nome %>')"><i class="bi bi-plus-circle"></i> Nova Variação / Cor</button>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                <ul class="dropdown-menu shadow-sm">
+                                    <li><a class="dropdown-item" href="#" onclick="editarItem('<%= item.id %>', '<%= item.nome %>', '<%= item.estoque_minimo %>')"><i class="bi bi-pencil me-2"></i>Editar Item</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="confirmarExclusao('/tintas-bobinas/itens/<%= item.id %>/delete', 'Deseja excluir este item e todas as suas variações e estoques?')"><i class="bi bi-trash me-2"></i>Excluir Item Completo</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CORPO DO ITEM (CARDS DE VARIAÇÃO) -->
+                    <div class="card-body bg-light">
+                        <div class="row g-3">
+                            <% if (item.grupos && item.grupos.length > 0) { %>
+                                <% item.grupos.forEach(grupo => { %>
+                                    <% const statusBom = grupo.estoque_atual > item.estoque_minimo; %>
+                                    <div class="col-md-4 col-lg-3">
+                                        <div class="card h-100 shadow-sm border-2 <%= statusBom ? 'border-success' : 'border-danger' %>" style="transition: transform 0.2s;">
+                                            <div class="card-body text-center position-relative">
+                                                
+                                                <!-- Menu do Card -->
+                                                <div class="position-absolute top-0 end-0 p-2 dropdown">
+                                                    <button class="btn btn-sm btn-link text-muted p-0 shadow-none" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                                    <ul class="dropdown-menu shadow-sm">
+                                                        <li><a class="dropdown-item" href="#" onclick="editarGrupo('<%= grupo.id %>', '<%= grupo.nome %>')"><i class="bi bi-pencil me-2"></i>Renomear</a></li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><a class="dropdown-item text-danger" href="#" onclick="confirmarExclusao('/tintas-bobinas/grupos/<%= grupo.id %>/delete', 'Deseja excluir esta variação?')"><i class="bi bi-trash me-2"></i>Excluir</a></li>
+                                                    </ul>
+                                                </div>
+
+                                                <h6 class="fw-bold mt-2 text-uppercase text-secondary"><%= grupo.nome %></h6>
+                                                
+                                                <div class="display-5 fw-bold <%= statusBom ? 'text-success' : 'text-danger' %> my-2">
+                                                    <%= grupo.estoque_atual %>
+                                                </div>
+                                                
+                                                <span class="badge <%= statusBom ? 'bg-success' : 'bg-danger' %> mb-3 w-100 py-2">
+                                                    <i class="bi bi-<%= statusBom ? 'check-circle' : 'exclamation-triangle' %>"></i> <%= statusBom ? 'Estoque Seguro' : 'Estoque Baixo' %>
+                                                </span>
+                                                
+                                                <!-- BOTÃO MÁGICO DE LANÇAMENTO -->
+                                                <div class="d-grid mt-auto">
+                                                    <button class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="abrirModalMovimentacao('<%= grupo.id %>', '<%= grupo.nome %>', '<%= item.nome %>')">
+                                                        <i class="bi bi-arrow-left-right"></i> Lançar Entrada/Uso
+                                                    </button>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            <% } else { %>
+                                <div class="col-12 text-center text-muted py-3">
+                                    <i class="bi bi-palette fs-4 d-block mb-2"></i>
+                                    Nenhuma variação ou cor cadastrada neste item.<br>Clique em "Nova Variação / Cor".
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    <% } %>
+</div>
+
+<!-- Modal Novo/Editar Item -->
+<div class="modal fade" id="modalItem" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="/tintas-bobinas/itens" method="POST" id="formItem" class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="tituloModalItem">Cadastrar Item Base</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nome do Item</label>
+                    <input type="text" class="form-control" name="nome" id="inputNomeItem" required placeholder="Ex: Tinta Sublimática, Papel Kraft...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-danger">Alerta de Estoque Baixo</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-danger text-white"><i class="bi bi-bell-fill"></i></span>
+                        <input type="number" class="form-control" name="estoque_minimo" id="inputMinimoItem" value="0" min="0" required>
+                    </div>
+                    <div class="form-text">O card ficará vermelho quando o estoque chegar neste número ou menos.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Novo/Editar Grupo -->
+<div class="modal fade" id="modalGrupo" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="/tintas-bobinas/grupos" method="POST" id="formGrupo" class="modal-content">
+            <input type="hidden" name="item_id" id="inputItemIdGrupo">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="tituloModalGrupo">Adicionar Variação</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-secondary py-2 small" id="textoAjudaGrupo"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nome da Variação</label>
+                    <input type="text" class="form-control" name="nome" id="inputNomeGrupo" required placeholder="Ex: Ciano, Amarelo, 60cm, 90cm...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-dark">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL LOTE DE MOVIMENTAÇÕES (A MÁGICA ACONTECE AQUI) -->
+<div class="modal fade" id="modalMovimentacaoLote" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <form action="/tintas-bobinas/movimentacoes" method="POST" id="formMovimentacao" class="modal-content border-0 shadow">
+            <input type="hidden" name="grupo_id" id="inputGrupoIdMov">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-arrow-left-right"></i> Ajustar Estoque: <span id="spanNomeGrupoMov" class="text-warning"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-secondary mb-0"><i class="bi bi-list-check"></i> Linhas de Lançamento</h6>
+                    <button type="button" class="btn btn-sm btn-success shadow-sm" onclick="adicionarLinhaMovimentacao()">
+                        <i class="bi bi-plus-lg"></i> Adicionar Linha
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle text-center bg-white shadow-sm" id="tabelaMovimentacoes">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 130px;">Operação</th>
+                                <th style="width: 140px;">Data</th>
+                                <th style="width: 100px;">Quantidade</th>
+                                <th>Fornecedor / Observação</th>
+                                <th style="width: 50px;"><i class="bi bi-trash"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyMovimentacoes">
+                            <!-- Inseridas via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Processar Estoque</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Confirmação de Exclusão Genérico -->
+<div class="modal fade" id="modalConfirmDelete" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle"></i> Confirmação</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-3" id="textoConfirmDelete"></div>
+            <div class="modal-footer py-1 justify-content-center">
+                <form id="formDeleteAction" method="POST" class="m-0 p-0">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-3">Excluir Permanentemente</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function editarItem(id, nome, min) {
+        document.getElementById('formItem').action = `/tintas-bobinas/itens/${id}/update`;
+        document.getElementById('tituloModalItem').innerText = 'Editar Item Base';
+        document.getElementById('inputNomeItem').value = nome;
+        document.getElementById('inputMinimoItem').value = min;
+        new bootstrap.Modal(document.getElementById('modalItem')).show();
+    }
+
+    function abrirModalGrupo(itemId, nomeItem) {
+        document.getElementById('formGrupo').action = `/tintas-bobinas/grupos`;
+        document.getElementById('tituloModalGrupo').innerText = `Nova Variação`;
+        document.getElementById('textoAjudaGrupo').innerHTML = `Criando uma variação (cor/tamanho) para <strong>${nomeItem}</strong>.`;
+        document.getElementById('inputItemIdGrupo').value = itemId;
+        document.getElementById('inputNomeGrupo').value = '';
+        new bootstrap.Modal(document.getElementById('modalGrupo')).show();
+    }
+
+    function editarGrupo(id, nome) {
+        document.getElementById('formGrupo').action = `/tintas-bobinas/grupos/${id}/update`;
+        document.getElementById('tituloModalGrupo').innerText = 'Editar Variação';
+        document.getElementById('textoAjudaGrupo').innerText = 'Altere o nome desta variação.';
+        document.getElementById('inputNomeGrupo').value = nome;
+        new bootstrap.Modal(document.getElementById('modalGrupo')).show();
+    }
+
+    function confirmarExclusao(url, mensagem) {
+        document.getElementById('textoConfirmDelete').innerText = mensagem;
+        document.getElementById('formDeleteAction').action = url;
+        new bootstrap.Modal(document.getElementById('modalConfirmDelete')).show();
+    }
+
+    document.getElementById('modalItem').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('formItem').action = `/tintas-bobinas/itens`;
+        document.getElementById('tituloModalItem').innerText = 'Cadastrar Item Base';
+        document.getElementById('inputNomeItem').value = '';
+        document.getElementById('inputMinimoItem').value = '0';
+    });
+
+    // ==========================================
+    // LÓGICA DO MODAL DE MOVIMENTAÇÃO EM LOTE
+    // ==========================================
+    function abrirModalMovimentacao(grupoId, nomeGrupo, nomeItem) {
+        document.getElementById('inputGrupoIdMov').value = grupoId;
+        document.getElementById('spanNomeGrupoMov').innerText = `${nomeItem} (${nomeGrupo})`;
+        
+        // Limpa a tabela e adiciona uma linha inicial
+        document.getElementById('tbodyMovimentacoes').innerHTML = '';
+        adicionarLinhaMovimentacao();
+        
+        new bootstrap.Modal(document.getElementById('modalMovimentacaoLote')).show();
+    }
+
+    function adicionarLinhaMovimentacao() {
+        const tbody = document.getElementById('tbodyMovimentacoes');
+        const linhaVazia = document.getElementById('linhaVaziaMov');
+        if (linhaVazia) linhaVazia.remove();
+
+        const hoje = new Date().toISOString().split('T')[0];
+        const tr = document.createElement('tr');
+        
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm" name="tipos[]" onchange="toggleFornecedorLinha(this)" required>
+                    <option value="uso" selected>Uso (-)</option>
+                    <option value="entrada">Entrada (+)</option>
+                </select>
+            </td>
+            <td><input type="date" class="form-control form-control-sm text-center" name="datas_movimentacao[]" value="${hoje}" required></td>
+            <td><input type="number" class="form-control form-control-sm text-center fw-bold" name="quantidades[]" min="1" value="1" required></td>
+            <td><input type="text" class="form-control form-control-sm input-forn" name="fornecedores[]" placeholder="(Opcional no Uso)" disabled></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removerLinhaMovimentacao(this)"><i class="bi bi-x-lg"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function toggleFornecedorLinha(selectEl) {
+        const tr = selectEl.closest('tr');
+        const inputForn = tr.querySelector('.input-forn');
+        
+        if (selectEl.value === 'entrada') {
+            inputForn.disabled = false;
+            inputForn.required = true;
+            inputForn.placeholder = "Obrigatório na Entrada";
+            selectEl.classList.replace('text-danger', 'text-success'); // Efeito visual
+        } else {
+            inputForn.disabled = true;
+            inputForn.required = false;
+            inputForn.value = "";
+            inputForn.placeholder = "(Opcional no Uso)";
+        }
+    }
+
+    function removerLinhaMovimentacao(btn) {
+        btn.closest('tr').remove();
+        const tbody = document.getElementById('tbodyMovimentacoes');
+        if (tbody.children.length === 0) {
+            tbody.innerHTML = '<tr id="linhaVaziaMov"><td colspan="5" class="text-center text-muted py-3">Nenhum lançamento. Adicione uma linha.</td></tr>';
+        }
+    }
+
+    document.getElementById('formMovimentacao').addEventListener('submit', function(e) {
+        if (document.getElementById('linhaVaziaMov')) {
+            e.preventDefault();
+            alert("Adicione pelo menos uma linha antes de salvar!");
+        }
+    });
+</script>

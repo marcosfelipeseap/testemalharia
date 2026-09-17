@@ -1,0 +1,198 @@
+<% 
+    const malhariasUnicas = [];
+    const idsMalharias = new Set();
+    if (malhariasPendentes) {
+        malhariasPendentes.forEach(mal => {
+            if (!idsMalharias.has(mal.id)) {
+                idsMalharias.add(mal.id);
+                malhariasUnicas.push(mal);
+            }
+        });
+    }
+
+    const registrosUnicos = [];
+    const idsRegistros = new Set();
+    if (registrosEmAndamento) {
+        registrosEmAndamento.forEach(reg => {
+            if (!idsRegistros.has(reg.id)) {
+                idsRegistros.add(reg.id);
+                registrosUnicos.push(reg);
+            }
+        });
+    }
+%>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-ui-checks-grid text-primary"></i> Painel de Operações Diárias</h1>
+    <span class="badge bg-secondary fs-6"><i class="bi bi-calendar-event"></i> Hoje: <%= dataHoje.split('-').reverse().join('/') %></span>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <h4 class="text-danger mb-3 border-bottom pb-2">
+            <i class="bi bi-plus-circle"></i> Passo 1: Novo Apontamento Diário
+            <small class="text-muted fs-6">(Faltam: <%= malhariasUnicas.length %>)</small>
+        </h4>
+        
+        <% if (malhariasUnicas.length === 0) { %>
+            <div class="alert alert-success text-center py-4">
+                <i class="bi bi-check-circle fs-1"></i><br>
+                Todas as produções já foram lançadas hoje!
+            </div>
+        <% } else { %>
+            <div class="row g-3">
+                <% malhariasUnicas.forEach(function(mal) { %>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-start border-danger border-4 h-100 bg-light">
+                            <div class="card-body py-3">
+                                <h5 class="fw-bold text-dark"><%= mal.nome %></h5>
+                                <p class="small text-muted mb-3"><%= mal.tipo || 'Setor Padrão' %></p>
+
+                                <a href="/registros/create?malharia=<%= mal.id %>" class="btn btn-danger w-100 fw-bold shadow-sm">
+                                    <i class="bi bi-pencil-square"></i> Criar Registro Diário
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+
+    <div class="col-md-7">
+        <h4 class="text-primary mb-3 border-bottom pb-2">
+            <i class="bi bi-gear-wide-connected"></i> Passo 2: Apontamentos de Hoje
+        </h4>
+        
+        <% if (registrosUnicos.length === 0) { %>
+            <div class="alert alert-secondary text-center py-4">
+                <i class="bi bi-inbox fs-1"></i><br>
+                Nenhuma produção registrada ainda. Inicie um apontamento no Passo 1.
+            </div>
+        <% } else { %>
+            <div class="row g-3">
+                <% registrosUnicos.forEach(function(reg) { %>
+                    <% 
+                        let totalProd = 0;
+                        if(reg.itens) reg.itens.forEach(i => totalProd += i.qtd_produzida);
+                        let percentual = reg.meta_calculada > 0 ? Math.round((totalProd / reg.meta_calculada) * 100) : 0;
+                    %>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-start border-primary border-4 h-100">
+                            <div class="card-body pb-2">
+                                <h5 class="fw-bold mb-1"><%= reg.malharia ? reg.malharia.nome : 'N/A' %></h5>
+                                <p class="small text-muted mb-2"><i class="bi bi-people-fill"></i> <%= reg.qtd_internos %> Internos Mapeados</p>
+                                
+                                <div class="small text-muted mt-1 mb-2 border-bottom pb-2">
+                                    <i class="bi bi-person-circle text-primary"></i> <span class="fw-bold"><%= reg.usuario ? reg.usuario.nome : 'Desconhecido' %></span> registrou
+                                </div>
+
+                                <% if (reg.aviso_sistema) { %>
+                                    <div class="alert alert-danger py-1 px-2 small mt-2 mb-2 border-danger border-start border-4">
+                                        <strong><i class="bi bi-exclamation-octagon-fill"></i> Aviso:</strong> <%= reg.aviso_sistema %>
+                                    </div>
+                                <% } %>
+                                
+                                <div class="text-primary small fw-bold mb-2 mt-2 bg-light p-1 rounded text-center">
+                                    <i class="bi bi-clock-history"></i> Limite de edição em: <span class="contador-fim text-danger">--:--:--</span>
+                                </div>
+
+                                <div class="alert-fim-expediente alert alert-danger py-2 px-2 small mt-2 mb-2 d-none border-danger border-start border-4" 
+                                     data-justificativa="<%= reg.justificativa ? 'sim' : 'nao' %>" 
+                                     data-percentual="<%= percentual %>">
+                                    <strong><i class="bi bi-exclamation-octagon-fill"></i> Pendência:</strong> A produção não foi concluída ou a quebra de meta não foi justificada.
+                                </div>
+                                 
+                                <div class="mt-3">
+                                    <% if (reg.justificativa && totalProd === 0) { %>
+                                        <div class="alert alert-warning py-1 px-2 small mb-0 mt-2">
+                                            <strong><i class="bi bi-exclamation-triangle"></i> Sem Produção:</strong> <%= reg.justificativa.nome %>
+                                        </div>
+                                    <% } else { %>
+                                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                                            <span>Progresso</span>
+                                            <span class="<%= percentual >= 100 ? 'text-success' : 'text-primary' %>"><%= totalProd %> / <%= Math.round(reg.meta_calculada) %> peças</span>
+                                        </div>
+                                        <div class="progress" style="height: 10px;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated <%= percentual >= 100 ? 'bg-success' : 'bg-primary' %>" 
+                                                 role="progressbar" style="width: <%= percentual %>%"></div>
+                                        </div>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-0 pt-0">
+                                <a href="/registros/<%= reg.id %>/edit" class="btn btn-outline-primary w-100 mt-2 shadow-sm fw-bold">
+                                    <i class="bi bi-pencil-square"></i> Editar / Atualizar Qtd.
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDetalhesRegistro" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="detalhesModalTitle"><i class="bi bi-card-list"></i> Detalhes da Produção</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light" id="detalhesModalBody"></div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Pega a dataHoje injetada pelo Backend (Ex: 2026-08-04)
+        const partesHoje = "<%= dataHoje %>".split('-');
+        
+        // Define o limite rígido para o dia seguinte (ou segunda-feira), as 12:00:00.
+        const dataLimite = new Date(partesHoje[0], partesHoje[1] - 1, partesHoje[2]);
+        const diaDaSemanaHoje = dataLimite.getDay(); // 5 = Sexta, 6 = Sábado
+
+        if (diaDaSemanaHoje === 5) { 
+            dataLimite.setDate(dataLimite.getDate() + 3); // Limite de Sexta passa pra Segunda (+3)
+        } else if (diaDaSemanaHoje === 6) { 
+            dataLimite.setDate(dataLimite.getDate() + 2); // Limite de Sábado passa pra Segunda (+2)
+        } else {
+            dataLimite.setDate(dataLimite.getDate() + 1); // Normal (+1 dia)
+        }
+        dataLimite.setHours(12, 0, 0, 0);
+
+        function atualizarContadores() {
+            const agora = new Date();
+            const diffFim = dataLimite - agora;
+            
+            let strFim = "Encerrado";
+            if (diffFim > 0) {
+                const h = Math.floor(diffFim / 3600000).toString().padStart(2, '0');
+                const m = Math.floor((diffFim % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diffFim % 60000) / 1000).toString().padStart(2, '0');
+                strFim = `${h}:${m}:${s}`;
+            } else {
+                document.querySelectorAll('.alert-fim-expediente').forEach(alerta => {
+                    const justif = alerta.getAttribute('data-justificativa');
+                    const perc = parseInt(alerta.getAttribute('data-percentual')) || 0;
+                    
+                    if (justif === 'nao' && perc < 100) {
+                        alerta.classList.remove('d-none');
+                    }
+                });
+            }
+
+            document.querySelectorAll('.contador-fim').forEach(el => {
+                el.innerText = strFim;
+            });
+        }
+
+        atualizarContadores();
+        setInterval(atualizarContadores, 1000);
+    });
+</script>
