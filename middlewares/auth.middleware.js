@@ -30,7 +30,7 @@ exports.requireAuth = async (req, res, next) => {
         }
 
         req.user = user;
-        req.user.nivel = roleLevels[user.cargo];
+        req.user.nivel = roleLevels[user.cargo] || 0;
 
         // Se for monitor, precisamos carregar quais malharias ele tem acesso
         if (user.cargo === 'monitor') {
@@ -83,5 +83,46 @@ exports.requireInsumosAccess = (req, res, next) => {
     if (req.user.cargo === 'monitor') {
         return res.redirect('/');
     }
+    next();
+};
+
+// ====================================================
+// MIDDLEWARE PASSIVO PARA LER A SESSÃO (USADO NO PAINEL PÚBLICO)
+// ====================================================
+exports.checkUserPassive = async (req, res, next) => {
+    const token = req.cookies.access_token;
+
+    // Se não tiver token, deixa seguir viagem na mesma (não expulsa!)
+    if (!token) {
+        res.locals.user = null;
+        req.user = null;
+        return next();
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Lê os dados do utilizador do Supabase
+        const { data: user, error } = await supabase.schema('malharia')
+            .from('usuarios')
+            .select('id, nome, username, cargo, status, avatar') 
+            .eq('id', decoded.id)
+            .single();
+
+        // Se encontrou o utilizador e a conta é válida, injeta na sessão
+        if (!error && user && user.status === 'aprovado') {
+            req.user = user;
+            req.user.nivel = roleLevels[user.cargo] || 0;
+            res.locals.user = req.user;
+        } else {
+            res.locals.user = null;
+            req.user = null;
+        }
+    } catch (err) {
+        // Se o token estiver expirado, simplesmente ignora em vez de dar erro
+        res.locals.user = null;
+        req.user = null;
+    }
+    
     next();
 };

@@ -1,0 +1,10 @@
+{
+  "appId": "com.malharia.app",
+  "appName": "Malharia",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "testemalharia.onrender.com",
+    "cleartext": true
+  }
+}

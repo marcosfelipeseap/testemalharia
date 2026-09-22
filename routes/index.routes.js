@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { requireAuth, requireMalhariaAccess } = require('../middlewares/auth.middleware'); 
+const { requireAuth, requireMalhariaAccess, checkUserPassive } = require('../middlewares/auth.middleware'); 
 
 // ======== IMPORTAÇÃO DAS ROTAS ========
 const dashboardRoutes = require('./dashboard.routes'); // Rotas Públicas
@@ -18,8 +18,13 @@ const impressoesRoutes = require('./impressoes.routes');
 const tintasBobinasRoutes = require('./tintas_bobinas.routes'); 
 const rankingRoutes = require('./ranking.routes');
 
-// ======== ÁREA PÚBLICA (SEM LOGIN) ========
-router.use('/painel-publico', dashboardRoutes);
+// ======== ÁREA PÚBLICA (SEM EXIGIR LOGIN, MAS COM LEITURA PASSIVA DE SESSÃO) ========
+router.use('/painel-publico', checkUserPassive, dashboardRoutes);
+
+// Atalho para o botão do Painel Público funcionar (tanto de dentro do sistema como do Login)
+router.get('/publico', (req, res) => {
+    res.redirect('/painel-publico/diario');
+});
 
 // ======== ÁREA RESTRITA (COM LOGIN) ========
 router.use('/processos', requireAuth, requireMalhariaAccess, processosRoutes);
@@ -40,9 +45,9 @@ router.use('/impressoes', requireAuth, impressoesRoutes);
 router.use('/tintas-bobinas', requireAuth, tintasBobinasRoutes); 
 
 // ======== ROTA PRINCIPAL ========
-// Redireciona quem acessa a raiz do sistema direto para o painel público
+// Redireciona quem acessa a raiz do sistema direto para o login
 router.get('/', (req, res) => {
-    res.redirect('/painel-publico/diario');
+    res.redirect('/auth/login');
 });
 
 module.exports = router;

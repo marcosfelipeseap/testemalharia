@@ -31,19 +31,21 @@
         <!-- 3. BOTÕES E RELÓGIO (SÓ NO COMPUTADOR) -->
         <div class="navbar-nav d-flex flex-column justify-content-center align-items-end px-4 text-light d-none d-md-flex order-2 order-md-3" style="min-width: 260px; padding-top: 8px; padding-bottom: 8px;">
             
-            <% if (typeof user !== 'undefined' && user && user.cargo !== 'monitor' && user.cargo !== 'controlador') { %>
-                <% if (isInsumos) { %>
-                    <a href="/" class="text-decoration-none text-light d-flex align-items-center px-3 py-1 mb-1 rounded-pill shadow-sm" 
-                       style="font-size: 0.85rem; background: linear-gradient(135deg, #0d6efd, #0dcaf0); border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s ease-in-out;">
-                        <i class="bi bi-shop me-2"></i> Alternar para Malharias
-                    </a>
-                <% } else { %>
-                    <a href="/insumos" class="text-decoration-none text-light d-flex align-items-center px-3 py-1 mb-1 rounded-pill shadow-sm" 
-                       style="font-size: 0.85rem; background: linear-gradient(135deg, #198754, #20c997); border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s ease-in-out;">
-                        <i class="bi bi-boxes me-2"></i> Alternar para Insumos
-                    </a>
+            <div class="d-flex gap-2 mb-1">
+                <% if (typeof user !== 'undefined' && user && user.cargo !== 'monitor' && user.cargo !== 'controlador') { %>
+                    <% if (isInsumos) { %>
+                        <a href="/" class="text-decoration-none text-light d-flex align-items-center px-3 py-1 rounded-pill shadow-sm" 
+                           style="font-size: 0.85rem; background: linear-gradient(135deg, #0d6efd, #0dcaf0); border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s ease-in-out;">
+                            <i class="bi bi-shop me-2"></i> Alternar para Malharias
+                        </a>
+                    <% } else { %>
+                        <a href="/insumos" class="text-decoration-none text-light d-flex align-items-center px-3 py-1 rounded-pill shadow-sm" 
+                           style="font-size: 0.85rem; background: linear-gradient(135deg, #198754, #20c997); border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s ease-in-out;">
+                            <i class="bi bi-boxes me-2"></i> Alternar para Insumos
+                        </a>
+                    <% } %>
                 <% } %>
-            <% } %>
+            </div>
 
             <span id="relogio-brasilia" class="text-white-50 mt-1" style="font-size: 0.85rem; letter-spacing: 0.5px;"></span>
         </div>
@@ -63,7 +65,7 @@
 
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-3">
                 
-                <!-- RANKING (SÓ APARECE AQUI NO CELULAR, SEM QUEBRAR O CABEÇALHO) -->
+                <!-- RANKING (SÓ APARECE AQUI NO CELULAR) -->
                 <div class="d-block d-md-none mb-3">
                     <%- include('../partials/topbar_ranking', { isMobile: true }) %>
                 </div>

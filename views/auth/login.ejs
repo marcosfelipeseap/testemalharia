@@ -6,6 +6,7 @@
     <title>Login - Sistema de Malharia</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/css/main.css">
 </head>
 <body class="bg-light d-flex align-items-center justify-content-center min-vh-100 py-4">
@@ -42,7 +43,7 @@
                 </a>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold">Entrar</button>
+            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm">Entrar</button>
         </form>
         
         <div class="mt-4 text-center">
@@ -50,6 +51,17 @@
             <a href="/auth/register" class="text-decoration-none text-secondary fw-semibold">
                 Solicitar Cadastro &rarr;
             </a>
+        </div>
+
+        <hr class="my-4 border-secondary opacity-25">
+
+        <!-- NOVO: ACESSO AO PAINEL PÚBLICO -->
+        <div class="text-center">
+            <a href="/publico" class="btn btn-outline-info w-100 fw-semibold d-flex align-items-center justify-content-center gap-2" style="border-radius: 8px;">
+                <i class="bi bi-display" style="font-size: 1.1rem;"></i>
+                Acessar Painel Público
+            </a>
+            <p class="text-muted small mt-2 mb-0">Visualize o resumo da produção sem login.</p>
         </div>
     </div>
 

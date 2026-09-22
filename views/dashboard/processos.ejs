@@ -123,9 +123,15 @@
 
     /* CORES DE STATUS RIGOROSAS (Com !important para blindar) */
     .pill { padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block; text-align: center; }
-    .pill-nao-iniciada { background: #FFEBEE !important; color: #C62828 !important; border: 1px solid #FFCDD2 !important; } /* Vermelho */
-    .pill-parcial { background: #FFF9C4 !important; color: #F57F17 !important; border: 1px solid #FFF59D !important; } /* Amarelo */
-    .pill-concluida { background: #E8F5E9 !important; color: #2E7D32 !important; border: 1px solid #C8E6C9 !important; } /* Verde */
+    
+    /* 1. Vermelho — Entrega não iniciada */
+    .pill-nao-iniciada { background: #FFEBEE !important; color: #D32F2F !important; border: 1px solid #EF9A9A !important; } 
+    
+    /* 2. Amarelo Vivo — Parcialmente entregue */
+    .pill-parcial { background: #FFF8E1 !important; color: #F57F17 !important; border: 1px solid #FBC02D !important; } 
+    
+    /* 3. Verde — Demanda concluída */
+    .pill-concluida { background: #E8F5E9 !important; color: #2E7D32 !important; border: 1px solid #A5D6A7 !important; } 
   </style>
 
   <h2>Controle de Processos</h2>
@@ -190,7 +196,7 @@
     nProcesso: [], 
     tipoDemanda: [], 
     orgao: [], 
-    produtosBasicos: [], // Mapeado para o novo array de produtos base (Camisa, Calça, etc)
+    produtosBasicos: [], 
     status: [],
     searchTerm: "" 
   };
@@ -199,7 +205,7 @@
       { id: 'list-nprocesso', key: 'nProcesso' },
       { id: 'list-demanda', key: 'tipoDemanda' },
       { id: 'list-orgao', key: 'orgao' },
-      { id: 'list-produto', key: 'produtosBasicos' }, // Agora aponta pro Array limpo
+      { id: 'list-produto', key: 'produtosBasicos' }, 
       { id: 'list-status', key: 'status' }
   ];
 
@@ -248,19 +254,31 @@
       }
   }
 
+  // =========================================================================
+  // FUNÇÃO PARA CORRIGIR TEXTOS BUGADOS DO BANCO PARA EXIBIÇÃO
+  // =========================================================================
+  function getVisualStatusName(statusStr) {
+      if (!statusStr) return 'ENTREGA NÃO INICIADA';
+      let s = statusStr.toUpperCase().trim();
+      
+      if (s.includes('PARCIAMENTE')) {
+          return s.replace('PARCIAMENTE', 'PARCIALMENTE');
+      }
+      return s;
+  }
+
   function updateAllDropdowns() {
       filterMap.forEach(f => buildDropdown(f.id, f.key));
   }
 
   function buildDropdown(elementId, key) {
-    // BUG FIX: Quando construímos as opções de UM dropdown, consideramos todos os filtros EXCETO ele mesmo!
     let availableData = processRawData.filter(r => {
         if (p5Filters.searchTerm) {
             const searchStr = `${r.nProcesso} ${r.orgao} ${(r.produtosBasicos||[]).join(' ')} ${r.tipoDemanda} ${r.obs}`.toLowerCase();
             if (!searchStr.includes(p5Filters.searchTerm)) return false;
         }
         for (let prop in p5Filters) {
-            if (prop === key || prop === 'searchTerm') continue; // IGNORA O FILTRO ATUAL (resolve o bug de sumir opções)
+            if (prop === key || prop === 'searchTerm') continue;
             
             if (p5Filters[prop].length > 0) {
                 if (Array.isArray(r[prop])) {
@@ -304,9 +322,11 @@
     } else {
         uniqueValues.forEach(val => {
             let isChecked = p5Filters[key].includes(val);
+            let displayVal = key === 'status' ? getVisualStatusName(val) : val; // Corrige no Filtro
+            
             let div = document.createElement('div');
             div.className = 'check-item';
-            div.innerHTML = `<input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''}> ${val}`;
+            div.innerHTML = `<input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''}> ${displayVal}`;
             div.querySelector('input').onchange = function() { updateProcessFilters(key, this); };
             div.onclick = function(e) {
                 if(e.target.tagName !== 'INPUT') {
@@ -338,17 +358,27 @@
     }
   }
 
-  function getStatusClass(statusStr) {
-      if (!statusStr) return 'pill-nao-iniciada';
+  // =========================================================================
+  // SISTEMA DE PRIORIDADE E CORES BLINDADO
+  // =========================================================================
+  
+  // 1 = Vermelho (Não iniciada) | 2 = Amarelo (Parcialmente) | 3 = Verde (Concluída)
+  function getStatusPriority(statusStr) {
+      if (!statusStr) return 1;
       let s = statusStr.toLowerCase().trim();
       
-      if (s.includes('concluída') || s.includes('concluida') || s.includes('ok')) {
-          return 'pill-concluida'; // VERDE ABSOLUTO
-      } else if (s.includes('parcial') || s.includes('andamento') || s.includes('parcialmente')) {
-          return 'pill-parcial'; // AMARELO ABSOLUTO
-      } else {
-          return 'pill-nao-iniciada'; // VERMELHO ABSOLUTO
-      }
+      if (s.includes('concluída') || s.includes('concluida') || s.includes('ok')) return 3;
+      
+      if (s.includes('parcial') || s.includes('parcia') || s.includes('andamento')) return 2;
+      
+      return 1; 
+  }
+
+  function getStatusClass(statusStr) {
+      let priority = getStatusPriority(statusStr);
+      if (priority === 3) return 'pill-concluida'; // Verde
+      if (priority === 2) return 'pill-parcial';   // Amarelo
+      return 'pill-nao-iniciada';                  // Vermelho
   }
 
   function renderPage5() {
@@ -365,20 +395,12 @@
         if (p5Filters.tipoDemanda.length && !p5Filters.tipoDemanda.includes(r.tipoDemanda)) return false;
         if (p5Filters.orgao.length && !p5Filters.orgao.includes(r.orgao)) return false;
         if (p5Filters.status.length && !p5Filters.status.includes(r.status)) return false;
-        
         if (p5Filters.produtosBasicos.length && !p5Filters.produtosBasicos.some(p => (r.produtosBasicos||[]).includes(p))) return false;
         
         return true;
     });
 
     let groups = {};
-    
-    // Níveis de Status para Agrupamento Inteligente
-    const statusPriority = { 
-        "Entrega não iniciada": 1, 
-        "Parcialmente entregue": 2, 
-        "Demanda concluída": 3 
-    };
 
     filtered.forEach(r => {
         let rawProc = r.nProcesso ? r.nProcesso.toString() : '';
@@ -395,15 +417,17 @@
                 items: [], 
                 totalAutorizado: 0, 
                 totalEntregue: 0, 
-                totalFaltante: 0
+                totalFaltante: 0,
+                basePriority: getStatusPriority(r.status) 
             };
         } else {
-            let currentStatusPrio = statusPriority[groups[sanitizedProc].status] || 99;
-            let rowStatusPrio = statusPriority[r.status] || 99;
+            let currentStatusPrio = groups[sanitizedProc].basePriority;
+            let rowStatusPrio = getStatusPriority(r.status);
             
             // Rebaixa o status global do processo se houver item incompleto
             if (rowStatusPrio < currentStatusPrio) {
                 groups[sanitizedProc].status = r.status;
+                groups[sanitizedProc].basePriority = rowStatusPrio;
             }
         }
         
@@ -414,7 +438,21 @@
     });
 
     let groupArray = Object.values(groups);
-    groupArray.sort((a, b) => (statusPriority[a.status] || 99) - (statusPriority[b.status] || 99));
+    
+    // =========================================================================
+    // ORDENAÇÃO EXPLÍCITA: 1 (Vermelho) -> 2 (Amarelo) -> 3 (Verde)
+    // =========================================================================
+    groupArray.sort((a, b) => {
+        let prioA = a.basePriority;
+        let prioB = b.basePriority;
+        
+        if (prioA !== prioB) {
+            return prioA - prioB; // Prioridade de cores
+        }
+        
+        // Desempate: Ordena pelo número do processo de forma decrescente
+        return (b.sanitized || '').localeCompare(a.sanitized || '');
+    });
 
     if (groupArray.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted)">Nenhum processo encontrado.</td></tr>';
@@ -424,6 +462,7 @@
     groupArray.forEach((g, idx) => {
         let rowId = 'proc-' + idx;
         let stClass = getStatusClass(g.status);
+        let statusVisual = getVisualStatusName(g.status); // Aplica a correção de nome ("Parcialmente")
 
         let processoHtml = g.nProcesso;
         if (g.linkSei) {
@@ -443,7 +482,7 @@
             <td style="font-weight:700">${g.totalAutorizado}</td>
             <td style="color:var(--success-text); font-weight: 700;">${g.totalEntregue}</td>
             <td style="color:var(--danger-text); font-weight: 700;">${g.totalFaltante}</td>
-            <td><span class="pill ${stClass}">${g.status}</span></td>
+            <td><span class="pill ${stClass}">${statusVisual}</span></td>
         `;
         tbody.appendChild(tr);
 
@@ -457,6 +496,8 @@
         
         g.items.forEach(item => {
             let itemStatusClass = getStatusClass(item.status);
+            let itemStatusVisual = getVisualStatusName(item.status);
+            
             childHtml += `<tr>
                 <td style="font-weight: 600;">${item.produto}</td>
                 <td>${item.dataEntrada}</td>
@@ -467,7 +508,7 @@
                 <td>${item.prazo}</td>
                 <td>
                     <span style="display:block; font-size: 11px; margin-bottom:4px; font-style: italic; color:var(--text-muted)">${item.situacao}</span>
-                    <span class="pill ${itemStatusClass}" style="font-size: 10px; padding: 2px 6px;">${item.status}</span>
+                    <span class="pill ${itemStatusClass}" style="font-size: 10px; padding: 2px 6px;">${itemStatusVisual}</span>
                 </td>
                 <td>${item.obs}</td>
             </tr>`;

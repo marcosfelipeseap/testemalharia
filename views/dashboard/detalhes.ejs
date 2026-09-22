@@ -1,9 +1,9 @@
 <!-- =========================================================
-     PAGE 4 — HISTÓRICO DETALHADO (DETALHES)
+     PAGE 4 — HISTÓRICO DETALHADO E RANKING
      ========================================================= -->
 <div id="page3" class="page">
   <style>
-    .ranking-container { background: var(--surface); border-radius: 12px; padding: 20px; border: var(--card-border); box-shadow: var(--shadow); margin-bottom: 20px; }
+    .ranking-container { background: var(--surface); border-radius: 12px; padding: 20px; border: var(--card-border); box-shadow: var(--shadow); margin-bottom: 20px; animation: fadeIn 0.4s ease;}
     .ranking-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
     .ranking-title { font-size: 16px; font-weight: 700; color: var(--text-main); }
     .ranking-period { font-size: 12px; color: var(--text-muted); font-weight: 500; }
@@ -36,7 +36,7 @@
 
   <div class="ranking-container">
       <div class="ranking-header">
-          <div class="ranking-title">Ranking de Performance</div>
+          <div class="ranking-title">Ranking de Performance (Dinâmico)</div>
           <div class="ranking-period" id="rankingPeriodDisplay"></div>
       </div>
       <div id="rankingList" class="rank-list"></div>
@@ -65,7 +65,8 @@
   let chartDetailsInst = null;
 
   function getColorForPercentage(perc) {
-      if (perc >= 85) return '#2E7D32'; // Verde
+      if (perc >= 100) return '#2E7D32'; // Verde Escuro (100%)
+      if (perc >= 85) return '#43A047'; // Verde Claro
       if (perc >= 60) return '#1E88E5'; // Azul
       if (perc >= 40) return '#FBC02D'; // Amarelo
       return '#C62828'; // Vermelho
@@ -79,46 +80,149 @@
 
   function renderPage3() {
     let dates = typeof getFilterDates === 'function' ? getFilterDates() : { start: new Date(0), end: new Date() };
-    let filtered = rawData.filter(r => r.dateObj >= dates.start && r.dateObj <= dates.end);
     
+    // Filtro global
+    let filtered = rawData.filter(r => r.dateObj >= dates.start && r.dateObj <= dates.end);
     let uniqueOficinasAll = [...new Set(filtered.map(r => r.oficina))].sort();
+    
     let rankingData = [];
     window.tempMissingDataP3 = {}; 
     
     let fmtDate = d => d.getDate().toString().padStart(2,'0') + '/' + (d.getMonth()+1).toString().padStart(2,'0') + '/' + d.getFullYear();
     let periodDisplay = document.getElementById('rankingPeriodDisplay');
     if (periodDisplay) {
-      periodDisplay.innerText = `Período: ${fmtDate(dates.start)} até ${fmtDate(dates.end)}`;
+        if (dates.start.getFullYear() < 2021 && dates.end.getFullYear() > 2090) {
+            periodDisplay.innerText = `Período: Todo o Histórico`;
+        } else {
+            periodDisplay.innerText = `Período: ${fmtDate(dates.start)} até ${fmtDate(dates.end)}`;
+        }
     }
 
+    // =====================================================================================
+    // CÁLCULO DE PERFORMANCE CORRIGIDO (Matemática IDÊNTICA ao ranking.service.js)
+    // =====================================================================================
     uniqueOficinasAll.forEach(of => {
         let dayRecords = filtered.filter(x => x.oficina === of);
-        let totalProd = dayRecords.reduce((a, b) => a + b.producaoDia, 0);
         let daysMap = {};
-        dayRecords.forEach(r => { if(!daysMap[r.data]) daysMap[r.data] = []; daysMap[r.data].push(r); });
         
-        let totalMeta = 0;
+        // 1. Agrupar a produção e a MAIOR META do dia (Evita duplicar meta)
+        dayRecords.forEach(r => { 
+            let dKey = r.data;
+            if(!daysMap[dKey]) {
+                daysMap[dKey] = {
+                    prodTotal: 0,
+                    metaMaxima: 0,
+                    justificativas: [],
+                    dateObj: r.dateObj 
+                }; 
+            }
+            
+            daysMap[dKey].prodTotal += (r.producaoDia || 0);
+            
+            if ((r.metaOficina || 0) > daysMap[dKey].metaMaxima) {
+                daysMap[dKey].metaMaxima = r.metaOficina;
+            }
+
+            if(r.justificativa) daysMap[dKey].justificativas.push(r.justificativa.toLowerCase());
+        });
+        
+        let ofiTotalProd = 0;
+        let ofiTotalMeta = 0;
+        let countMetaDays = 0;
+        let sumMetaForAvg = 0;
+
         Object.keys(daysMap).forEach(dateStr => {
-            let rArr = daysMap[dateStr];
-            let dObj = rArr[0].dateObj;
+            let inf = daysMap[dateStr];
             let recessStart = new Date(2025, 11, 23); 
             let recessEnd = new Date(2026, 0, 2);     
-            if (dObj >= recessStart && dObj <= recessEnd) return;
+            if (inf.dateObj >= recessStart && inf.dateObj <= recessEnd) return;
             if (typeof isFeriado === 'function' && isFeriado(dateStr, of)) return;
 
-            let validRecords = rArr.filter(r => !(r.producaoDia === 0 && typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa)));
-            if (validRecords.length > 0 && typeof calculateDynamicMeta === 'function') {
-              totalMeta += calculateDynamicMeta(validRecords);
+            let isInsumo = inf.justificativas.some(j => j.includes('insumo') || j.includes('falta'));
+
+            if (!isInsumo) {
+                ofiTotalProd += inf.prodTotal;
+                let metaValida = inf.metaMaxima;
+                ofiTotalMeta += metaValida;
+                
+                if (metaValida > 0) {
+                    sumMetaForAvg += metaValida;
+                    countMetaDays++;
+                }
             }
         });
 
-        let perc = totalMeta > 0 ? Math.round((totalProd / totalMeta) * 100) : 0;
-        if (totalMeta === 0 && totalProd > 0) perc = 100;
-        rankingData.push({ name: of, perc: perc });
+        let mediaMeta = countMetaDays > 0 ? Math.round(sumMetaForAvg / countMetaDays) : 10;
+        
+        // --- AUDITORIA DE FALTAS CORRIGIDA (COBRA SÓ ATÉ ONTEM) ---
+        let allOficinaRecords = rawData.filter(r => r.oficina === of);
+        
+        // Descobre a "data de criação" (Primeiro registro feito pela oficina na vida)
+        let dataCriacao = allOficinaRecords.length > 0 
+            ? new Date(Math.min(...allOficinaRecords.map(r => r.dateObj.getTime()))) 
+            : dates.start;
+
+        // O loop começa na data de criação (ou no início do filtro)
+        let startLoop = new Date(Math.max(dataCriacao.getTime(), dates.start.getTime()));
+        
+        // A data limite de cobrança é rigorosamente ONTEM (Impede de cobrar o relatório de "Hoje" que derrubava os 97%)
+        let dataLimiteCobranca = new Date();
+        dataLimiteCobranca.setHours(0, 0, 0, 0);
+        dataLimiteCobranca.setDate(dataLimiteCobranca.getDate() - 1); 
+
+        // O loop termina na data final do filtro OU até ontem.
+        let endLoop = new Date(Math.min(dates.end.getTime(), dataLimiteCobranca.getTime()));
+
+        let missingDates = [];
+        let presentDates = new Set(dayRecords.map(r => r.data));
+
+        let curr = new Date(startLoop);
+        curr.setHours(0,0,0,0);
+        
+        let maxRegObj = allOficinaRecords.reduce((max, r) => r.dateObj > max ? r.dateObj : max, new Date(0));
+
+        while (curr <= endLoop) {
+            let dayOfWeek = curr.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { 
+                let dStr = String(curr.getDate()).padStart(2, '0') + '/' + String(curr.getMonth() + 1).padStart(2, '0') + '/' + curr.getFullYear();
+                
+                let isRecesso = (curr >= new Date(2025, 11, 23) && curr <= new Date(2026, 0, 2));
+                let isHoliday = typeof isFeriado === 'function' ? isFeriado(dStr, of) : false;
+                let isAfterLastReg = (of === "GALPÃO 3.1" || of === "GALPÃO 3.2") && curr > maxRegObj;
+
+                if (!presentDates.has(dStr) && !isRecesso && !isHoliday && !isAfterLastReg) {
+                    missingDates.push(dStr);
+                }
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        window.tempMissingDataP3[of] = missingDates; 
+
+        // Punição: Adiciona a Meta Média exigida para os dias que não trabalharam
+        if (missingDates.length > 0) {
+            ofiTotalMeta += (missingDates.length * mediaMeta);
+        }
+
+        // 4. Calcular a percentagem real blindada
+        let perc = 0;
+        if (ofiTotalMeta > 0) {
+            perc = (ofiTotalProd / ofiTotalMeta) * 100;
+        } else if (ofiTotalProd > 0) {
+            perc = 100;
+        }
+
+        rankingData.push({ 
+            name: of, 
+            perc: parseFloat(perc.toFixed(1))
+        });
     });
 
-    rankingData.sort((a,b) => b.perc - a.perc);
+    rankingData.sort((a,b) => b.perc - a.perc || a.name.localeCompare(b.name));
 
+    // =====================================================================================
+    // RENDERIZAÇÃO DO RANKING (DESIGN ANTIGO PRESERVADO)
+    // =====================================================================================
     let rankCont = document.getElementById('rankingList'); 
     if (rankCont) {
       rankCont.innerHTML = '';
@@ -127,13 +231,15 @@
       } else {
           rankingData.forEach((item, index) => {
               let color = getColorForPercentage(item.perc);
+              let visualWidth = Math.min(item.perc, 100); // Impede a barra de quebrar a tela se passar de 100%
+
               let div = document.createElement('div'); 
               div.className = 'rank-item';
               div.innerHTML = `
                   <div class="rank-pos">#${index+1}</div>
                   <div class="rank-info">
                       <div class="rank-name" title="${item.name}">${item.name}</div>
-                      <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${Math.min(item.perc, 100)}%; background:${color}"></div></div>
+                      <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${visualWidth}%; background:${color}"></div></div>
                   </div>
                   <div class="rank-val">${item.perc}%</div>
               `;
@@ -142,11 +248,12 @@
       }
     }
 
+    // =====================================================================================
+    // RENDERIZAÇÃO DE DIAS SEM RELATÓRIO (FALTAS)
+    // =====================================================================================
     let missingRankingData = [];
     uniqueOficinasAll.forEach(of => {
-        // Utiliza a função global otimizada com validação de feriados
-        let missingDates = typeof getMissingBusinessDaysCustom === 'function' ? getMissingBusinessDaysCustom(of, rawData) : [];
-        window.tempMissingDataP3[of] = missingDates; 
+        let missingDates = window.tempMissingDataP3[of] || [];
         if (missingDates.length > 0) missingRankingData.push({ name: of, count: missingDates.length, dates: missingDates });
     });
     missingRankingData.sort((a,b) => b.count - a.count);
@@ -178,6 +285,9 @@
       }
     }
 
+    // =====================================================================================
+    // GRÁFICO E ACORDEÃO 
+    // =====================================================================================
     let list = document.getElementById('detailedList'); 
     if (!list) return;
     list.innerHTML = '';
@@ -193,10 +303,13 @@
     uniqueOficinasAll.forEach(of => {
       let rs = filtered.filter(r => r.oficina === of);
       let days = {}; 
+      
       rs.forEach(r => { 
-        if(!days[r.data]) days[r.data] = { p:0, items: [], j:[], o:[] }; 
+        if(!days[r.data]) days[r.data] = { p:0, m:0, j:[], o:[] }; 
         days[r.data].p += r.producaoDia; 
-        days[r.data].items.push(r);
+        
+        if (r.metaOficina > days[r.data].m) days[r.data].m = r.metaOficina;
+
         if(r.justificativa) days[r.data].j.push(r.justificativa);
         if(r.observacao) days[r.data].o.push(r.observacao);
       });
@@ -207,16 +320,17 @@
       
       Object.keys(days).forEach(d => {
           let inf = days[d];
-          let validItems = inf.items.filter(r => !(r.producaoDia === 0 && typeof isSemInsumo === 'function' && isSemInsumo(r.justificativa)));
-          if (validItems.length > 0 && typeof calculateDynamicMeta === 'function') {
-            inf.m = calculateDynamicMeta(validItems);
-          } else {
-            inf.m = 0;
-          }
-          
           let hasInsumoZero = inf.p === 0 && inf.j.some(just => typeof isSemInsumo === 'function' && isSemInsumo(just));
-          if (hasInsumoZero) { insumoZeroCount++; return; }
-          if (inf.p >= inf.m) okCount++; else failCount++;
+          
+          if (hasInsumoZero) { 
+              insumoZeroCount++; 
+              return; 
+          }
+          if (inf.p >= inf.m) {
+              okCount++; 
+          } else {
+              failCount++;
+          }
       });
 
       labels.push(of); 
@@ -245,7 +359,7 @@
 
         if (hasInsumoZero) { statusText = 'SEM INSUMO'; statusColor = 'var(--warning-text-dark)'; }
         let dLabel = d;
-        if (isWknd) dLabel += ` <span style="font-size:10px; color:var(--warning-text-dark); font-weight:bold;">(${daysOfWeek[dayOfWeek]})</span>`;
+        if (isWknd) dLabel += ` <span style="font-size:10px; color:var(--warning-text-dark); font-weight:bold;">(Final Sem.)</span>`;
 
         let uniqJ = [...new Set(inf.j)].filter(j => j && j.trim() !== "");
         let uniqO = [...new Set(inf.o)].filter(o => o && o.trim() !== "");

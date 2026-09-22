@@ -167,7 +167,20 @@
         </ul>
     <% } %>
 
-    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-5 mb-1 text-muted text-uppercase">
+    <!-- ========================================== -->
+    <!-- PORTA DE SAÍDA PARA O PAINEL PÚBLICO       -->
+    <!-- ========================================== -->
+    <ul class="nav flex-column mb-2 mt-4">
+        <li class="nav-item border-top border-bottom border-secondary-subtle">
+            <a class="nav-link" href="/publico" target="_blank">
+                <i class="bi bi-display" style="font-size: 1.2rem; margin-right: 2px;"></i>
+                <span class="menu-title">Acessar Painel Público</span>
+                <i class="bi bi-box-arrow-up-right ms-auto" style="font-size: 0.85rem;"></i>
+            </a>
+        </li>
+    </ul>
+
+    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
         <span style="font-size: 0.75rem;">Conta (<%= typeof user !== 'undefined' ? user.cargo : 'Visitante' %>)</span>
     </h6>
     <ul class="nav flex-column mb-2">

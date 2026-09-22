@@ -24,12 +24,16 @@
 </div>
 
 <script>
-    const rawData = <%- rawDataJSON %>;
-    const feriadosData = <%- feriadosJSON %>;
+    // INJEÇÃO SEGURA DAS VARIÁVEIS VINDAS DO CONTROLLER
+    const rawData = <%- typeof rawDataJSON !== 'undefined' ? rawDataJSON : '[]' %>;
+    const feriadosData = <%- typeof feriadosJSON !== 'undefined' ? feriadosJSON : '[]' %>;
     const demandasData = <%- typeof demandasJSON !== 'undefined' ? demandasJSON : '[]' %>;
     const processosData = <%- typeof processosJSON !== 'undefined' ? processosJSON : '[]' %>;
+    const scheduleData = <%- typeof scheduleJSON !== 'undefined' ? scheduleJSON : '[]' %>;
+    const rankingOficialData = <%- typeof rankingJSON !== 'undefined' ? rankingJSON : '[]' %>;
     window.infoOficinasEstatico = <%- typeof infoOficinasEstaticoJSON !== 'undefined' ? infoOficinasEstaticoJSON : '[]' %>;
 
+    // Normalização inicial das datas dos registros de produção
     rawData.forEach(r => {
         if(typeof r.dateObj === 'string') r.dateObj = new Date(r.dateObj);
     });
@@ -40,6 +44,7 @@
     let globalDemandas = [];
     const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
+    // Funções utilitárias globais
     function isSemInsumo(just) {
         if (!just) return false;
         let txt = just.toLowerCase();
@@ -54,12 +59,11 @@
         return day === 0 || day === 6;
     }
 
-    // VERIFICAÇÃO DE FERIADO NO BANCO DE DADOS
     function isFeriado(dateStr, oficinaName) {
         return feriadosData.some(f => f.data === dateStr && (f.oficina === 'Todas' || f.oficina === oficinaName));
     }
 
-    // FILTRO DE TEMPO DINÂMICO GLOBAL
+    // Gerenciador do Filtro de Tempo Dinâmico Global
     function getFilterDates() {
         let startInput = document.getElementById('globalStartFilter').value;
         let endInput = document.getElementById('globalEndFilter').value;
@@ -86,6 +90,9 @@
         if (document.getElementById('page5') && document.getElementById('page5').classList.contains('active')) {
             if (typeof initProcesses === 'function') initProcesses(processosData);
         }
+        if (document.getElementById('page6') && document.getElementById('page6').classList.contains('active')) {
+            if (typeof initCronograma === 'function') initCronograma();
+        }
     }
 
     function resetGlobalFilter() {
@@ -94,6 +101,7 @@
         triggerGlobalFilter();
     }
 
+    // Funções de Cálculo Estáticas
     function calculateDynamicMeta(dayRecords) {
         if (!dayRecords || dayRecords.length === 0) return 0;
         if (dayRecords.length === 1) return dayRecords[0].metaOficina || 0;
@@ -124,7 +132,6 @@
         }
     }
 
-    // CALCULA DIAS ÚTEIS AUSENTES DESCONSIDERANDO FERIADOS E RECESSOS A PARTIR DO 1º REGISTRO
     function getMissingBusinessDaysCustom(oficina, allData) {
         let datesFilter = getFilterDates();
         let oficinaRecords = allData.filter(r => r.oficina === oficina && r.dateObj >= datesFilter.start && r.dateObj <= datesFilter.end);
@@ -144,9 +151,8 @@
 
         while (curr <= now) {
             let dayOfWeek = curr.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Dias úteis (Seg a Sex)
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { 
                 let dStr = String(curr.getDate()).padStart(2, '0') + '/' + String(curr.getMonth() + 1).padStart(2, '0') + '/' + curr.getFullYear();
-                
                 let inRecess = (curr.getTime() >= new Date(2025, 11, 23).getTime() && curr.getTime() <= new Date(2026, 0, 2).getTime());
                 let isHoliday = isFeriado(dStr, oficina);
                 let isAfterLastReg = (oficina === "GALPÃO 3.1" || oficina === "GALPÃO 3.2") && curr > maxRegObj;
@@ -181,6 +187,7 @@
         return lines;
     }
 
+    // Inicialização da Página Diária
     document.addEventListener("DOMContentLoaded", () => {
         const hoje = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
         const objHoje = new Date(hoje);
@@ -195,10 +202,11 @@
     });
 </script>
 
-<!-- INCLUSÃO DAS PÁGINAS MODULARES -->
+<!-- INCLUSÃO DAS 7 PÁGINAS MODULARES -->
 <%- include('diario') %>
 <%- include('raiox') %>
 <%- include('desempenho') %>
 <%- include('detalhes') %>
 <%- include('demanda') %>
 <%- include('processos') %>
+<%- include('cronograma') %>
