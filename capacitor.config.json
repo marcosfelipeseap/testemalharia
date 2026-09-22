@@ -4,7 +4,7 @@
   "webDir": "public",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://testemalharia.onrender.com/",
+    "url": "https://malhariaseap.com/",
     "cleartext": true,
     "allowNavigation": [
       "*.onrender.com"
