@@ -5,6 +5,12 @@
   "bundledWebRuntime": false,
   "server": {
     "url": "https://testemalharia.onrender.com/",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "*.onrender.com"
+    ]
+  },
+  "android": {
+    "webContentsDebuggingEnabled": true
   }
 }
